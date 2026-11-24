@@ -1,0 +1,12 @@
+{
+  "metadataAttributes": {
+    "codigo_doc": "IMOBI-EMP-001",
+    "versao": "2.1",
+    "status": "oficial_ativo",
+    "dominio_kb": "empreendimentos",
+    "titulo": "Catalogo Tecnico de Empreendimentos e Memoriais Descritivos",
+    "vigencia": "2026-11-01",
+    "cidade": "Salvador-BA",
+    "empreendimentos": "horizonte-barra,parque-das-palmeiras,smart-studio-metropole"
+  }
+}

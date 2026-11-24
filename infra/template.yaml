@@ -1,0 +1,383 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  ImobiSmart AI — Serverless Backend (Fase 4 + Fase 5):
+  DynamoDB On-Demand (TTL 30d), Lambda Python 3.12 arm64 com IAM Menor Privilegio Rigido (ADR-004),
+  CloudWatch Logs (retencao 30d) e API Gateway REST com Usage Plan, Throttling e API Key (ADR-002/ADR-003).
+
+Parameters:
+  EnvironmentName:
+    Type: String
+    Default: prod
+    AllowedValues: [dev, prod]
+  DocsBucketName:
+    Type: String
+    Description: Bucket S3 existente contendo os PDFs em documents/ e o pacote Lambda em artifacts/
+  LambdaCodeS3Key:
+    Type: String
+    Default: artifacts/imobismart-api.zip
+    Description: Chave S3 do arquivo zip do codigo Lambda
+  KnowledgeBaseId:
+    Type: String
+    Description: ID da Bedrock Knowledge Base (ex. ABCD1234EF)
+  GuardrailId:
+    Type: String
+    Description: ID do Amazon Bedrock Guardrail (ex. xyz987654321)
+  GuardrailVersion:
+    Type: String
+    Default: DRAFT
+  AllowedOrigins:
+    Type: String
+    Default: http://localhost:3000
+    Description: Lista separada por virgula de origens permitidas (NUNCA usar *)
+  MonthlyQuotaLimit:
+    Type: Number
+    Default: 1000
+    MinValue: 100
+    MaxValue: 50000
+
+Resources:
+  # ---------------------------------------------------------------------------
+  # 1. DynamoDB Table (On-Demand + SSE + TTL 30 dias — Zero PII)
+  # ---------------------------------------------------------------------------
+  SessionsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub imobismart-sessions-${EnvironmentName}
+      BillingMode: PAY_PER_REQUEST
+      SSESpecification:
+        SSEEnabled: true
+      AttributeDefinitions:
+        - AttributeName: pk
+          AttributeType: S
+        - AttributeName: sk
+          AttributeType: S
+      KeySchema:
+        - AttributeName: pk
+          KeyType: HASH
+        - AttributeName: sk
+          KeyType: RANGE
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+      Tags:
+        - Key: Project
+          Value: ImobiSmartAI
+        - Key: Environment
+          Value: !Ref EnvironmentName
+
+  # ---------------------------------------------------------------------------
+  # 2. CloudWatch Log Group (Retencao 30 dias — FinOps & LGPD)
+  # ---------------------------------------------------------------------------
+  ApiLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/imobismart-api-${EnvironmentName}
+      RetentionInDays: 30
+      Tags:
+        - Key: Project
+          Value: ImobiSmartAI
+        - Key: Environment
+          Value: !Ref EnvironmentName
+
+  # ---------------------------------------------------------------------------
+  # 3. IAM Role — Menor Privilegio Rigido (ADR-004: Zero Wildcards *)
+  # ---------------------------------------------------------------------------
+  ChatLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub ImobiSmartChatLambdaRole-${EnvironmentName}
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: AllowLambdaAssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: ImobiSmartChatLambdaLeastPrivilegePolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Sid: CloudWatchLogsScopedToFunction
+                Effect: Allow
+                Action:
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/imobismart-api-${EnvironmentName}:*
+              - Sid: BedrockKnowledgeBaseRetrieveExactArn
+                Effect: Allow
+                Action:
+                  - bedrock:Retrieve
+                Resource: !Sub arn:aws:bedrock:${AWS::Region}:${AWS::AccountId}:knowledge-base/${KnowledgeBaseId}
+              - Sid: BedrockOrchestrationActionsWithoutResourceLevelArn
+                Effect: Allow
+                Action:
+                  - bedrock:RetrieveAndGenerate
+                  - bedrock:Rerank
+                Resource: '*'
+                Condition:
+                  StringEquals:
+                    aws:RequestedRegion: !Ref AWS::Region
+              - Sid: BedrockModelsAndRerankExactArns
+                Effect: Allow
+                Action:
+                  - bedrock:InvokeModel
+                  - bedrock:InvokeModelWithResponseStream
+                  - bedrock:GetInferenceProfile
+                Resource:
+                  - !Sub arn:aws:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/us.amazon.nova-pro-v1:0
+                  - arn:aws:bedrock:us-east-1::foundation-model/amazon.nova-pro-v1:0
+                  - arn:aws:bedrock:us-east-2::foundation-model/amazon.nova-pro-v1:0
+                  - arn:aws:bedrock:us-west-2::foundation-model/amazon.nova-pro-v1:0
+                  - !Sub arn:aws:bedrock:${AWS::Region}::foundation-model/cohere.rerank-v3-5:0
+              - Sid: BedrockGuardrailExactArns
+                Effect: Allow
+                Action:
+                  - bedrock:ApplyGuardrail
+                Resource:
+                  - !Sub arn:aws:bedrock:${AWS::Region}:${AWS::AccountId}:guardrail/${GuardrailId}
+                  - !Sub arn:aws:bedrock:${AWS::Region}:${AWS::AccountId}:guardrail-profile/us.guardrail.v1:0
+                  - !Sub arn:aws:bedrock:us-east-1:${AWS::AccountId}:guardrail-profile/us.guardrail.v1:0
+                  - !Sub arn:aws:bedrock:us-east-2:${AWS::AccountId}:guardrail-profile/us.guardrail.v1:0
+                  - !Sub arn:aws:bedrock:us-west-2:${AWS::AccountId}:guardrail-profile/us.guardrail.v1:0
+              - Sid: S3ReadOnlyDocumentsForPresignedUrls
+                Effect: Allow
+                Action:
+                  - s3:GetObject
+                Resource: !Sub arn:aws:s3:::${DocsBucketName}/documents/*
+                Condition:
+                  StringEquals:
+                    aws:ResourceAccount: !Ref AWS::AccountId
+              - Sid: DynamoDbSessionsTableOnly
+                Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:PutItem
+                  - dynamodb:Query
+                  - dynamodb:UpdateItem
+                Resource: !GetAtt SessionsTable.Arn
+      Tags:
+        - Key: Project
+          Value: ImobiSmartAI
+        - Key: Environment
+          Value: !Ref EnvironmentName
+
+  # ---------------------------------------------------------------------------
+  # 4. AWS Lambda Function (Python 3.12 · ARM64 Graviton · Zero Hardcode)
+  # ---------------------------------------------------------------------------
+  ChatLambdaFunction:
+    Type: AWS::Lambda::Function
+    DependsOn: ApiLogGroup
+    Properties:
+      FunctionName: !Sub imobismart-api-${EnvironmentName}
+      Runtime: python3.12
+      Architectures:
+        - arm64
+      Handler: src.handlers.chat.lambda_handler
+      Role: !GetAtt ChatLambdaRole.Arn
+      MemorySize: 512
+      Timeout: 60
+      Code:
+        S3Bucket: !Ref DocsBucketName
+        S3Key: !Ref LambdaCodeS3Key
+      Environment:
+        Variables:
+          KNOWLEDGE_BASE_ID: !Ref KnowledgeBaseId
+          MODEL_ARN: !Sub arn:aws:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/us.amazon.nova-pro-v1:0
+          RERANK_MODEL_ARN: !Sub arn:aws:bedrock:${AWS::Region}::foundation-model/cohere.rerank-v3-5:0
+          GUARDRAIL_ID: !Ref GuardrailId
+          GUARDRAIL_VERSION: !Ref GuardrailVersion
+          DOCS_BUCKET_NAME: !Ref DocsBucketName
+          DOCS_PREFIX: documents/
+          SESSIONS_TABLE_NAME: !Ref SessionsTable
+          PRESIGNED_URL_EXPIRES_SECONDS: '600'
+          ALLOWED_ORIGINS: !Ref AllowedOrigins
+          LOG_LEVEL: INFO
+      Tags:
+        - Key: Project
+          Value: ImobiSmartAI
+        - Key: Environment
+          Value: !Ref EnvironmentName
+
+  # ---------------------------------------------------------------------------
+  # 5. API Gateway REST — Rate Limiting + Usage Plan + API Key (Sem WAF / Sem CORS *)
+  # ---------------------------------------------------------------------------
+  ImobiSmartRestApi:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Name: !Sub imobismart-api-${EnvironmentName}
+      Description: ImobiSmart AI REST API (Protected via Usage Plan + x-api-key + BFF)
+      EndpointConfiguration:
+        Types: [REGIONAL]
+      Tags:
+        - Key: Project
+          Value: ImobiSmartAI
+        - Key: Environment
+          Value: !Ref EnvironmentName
+
+  V1Resource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref ImobiSmartRestApi
+      ParentId: !GetAtt ImobiSmartRestApi.RootResourceId
+      PathPart: v1
+
+  HealthResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref ImobiSmartRestApi
+      ParentId: !Ref V1Resource
+      PathPart: health
+
+  ChatResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref ImobiSmartRestApi
+      ParentId: !Ref V1Resource
+      PathPart: chat
+
+  FeedbackResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref ImobiSmartRestApi
+      ParentId: !Ref V1Resource
+      PathPart: feedback
+
+  HealthGetMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref ImobiSmartRestApi
+      ResourceId: !Ref HealthResource
+      HttpMethod: GET
+      AuthorizationType: NONE
+      ApiKeyRequired: false
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${ChatLambdaFunction.Arn}/invocations
+
+  ChatPostMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref ImobiSmartRestApi
+      ResourceId: !Ref ChatResource
+      HttpMethod: POST
+      AuthorizationType: NONE
+      ApiKeyRequired: true
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${ChatLambdaFunction.Arn}/invocations
+
+  FeedbackPostMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref ImobiSmartRestApi
+      ResourceId: !Ref FeedbackResource
+      HttpMethod: POST
+      AuthorizationType: NONE
+      ApiKeyRequired: true
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${ChatLambdaFunction.Arn}/invocations
+
+  ApiGatewayLambdaPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref ChatLambdaFunction
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${ImobiSmartRestApi}/*/*/*
+
+  ApiDeployment:
+    Type: AWS::ApiGateway::Deployment
+    DependsOn:
+      - HealthGetMethod
+      - ChatPostMethod
+      - FeedbackPostMethod
+    Properties:
+      RestApiId: !Ref ImobiSmartRestApi
+
+  ApiStage:
+    Type: AWS::ApiGateway::Stage
+    Properties:
+      RestApiId: !Ref ImobiSmartRestApi
+      DeploymentId: !Ref ApiDeployment
+      StageName: !Ref EnvironmentName
+      MethodSettings:
+        - ResourcePath: '/*'
+          HttpMethod: '*'
+          ThrottlingRateLimit: 5
+          ThrottlingBurstLimit: 10
+          MetricsEnabled: true
+      Tags:
+        - Key: Project
+          Value: ImobiSmartAI
+        - Key: Environment
+          Value: !Ref EnvironmentName
+
+  BffApiKey:
+    Type: AWS::ApiGateway::ApiKey
+    DependsOn: ApiStage
+    Properties:
+      Name: !Sub imobismart-bff-key-${EnvironmentName}
+      Description: Server-only API key consumed exclusively by the Vercel Next.js BFF
+      Enabled: true
+      Tags:
+        - Key: Project
+          Value: ImobiSmartAI
+        - Key: Environment
+          Value: !Ref EnvironmentName
+
+  ApiUsagePlan:
+    Type: AWS::ApiGateway::UsagePlan
+    DependsOn: ApiStage
+    Properties:
+      UsagePlanName: !Sub imobismart-usage-plan-${EnvironmentName}
+      Description: FinOps rate limiting and monthly quota protection (ADR-002 — no WAF)
+      ApiStages:
+        - ApiId: !Ref ImobiSmartRestApi
+          Stage: !Ref EnvironmentName
+      Throttle:
+        RateLimit: 5
+        BurstLimit: 10
+      Quota:
+        Limit: !Ref MonthlyQuotaLimit
+        Period: MONTH
+      Tags:
+        - Key: Project
+          Value: ImobiSmartAI
+        - Key: Environment
+          Value: !Ref EnvironmentName
+
+  ApiUsagePlanKey:
+    Type: AWS::ApiGateway::UsagePlanKey
+    Properties:
+      KeyId: !Ref BffApiKey
+      KeyType: API_KEY
+      UsagePlanId: !Ref ApiUsagePlan
+
+Outputs:
+  ApiBaseUrl:
+    Description: Base URL da REST API do ImobiSmart AI (para AWS_API_BASE_URL no BFF Vercel)
+    Value: !Sub https://${ImobiSmartRestApi}.execute-api.${AWS::Region}.amazonaws.com/${EnvironmentName}
+  HealthEndpoint:
+    Description: Endpoint GET /v1/health (zero custo Bedrock)
+    Value: !Sub https://${ImobiSmartRestApi}.execute-api.${AWS::Region}.amazonaws.com/${EnvironmentName}/v1/health
+  ChatEndpoint:
+    Description: Endpoint POST /v1/chat (exige header x-api-key)
+    Value: !Sub https://${ImobiSmartRestApi}.execute-api.${AWS::Region}.amazonaws.com/${EnvironmentName}/v1/chat
+  ApiKeyId:
+    Description: ID da API Key (consulte o valor com aws apigateway get-api-key --include-value)
+    Value: !Ref BffApiKey
+  LambdaFunctionName:
+    Description: Nome da funcao AWS Lambda
+    Value: !Ref ChatLambdaFunction
+  LambdaRoleArn:
+    Description: ARN da Role IAM de Menor Privilegio
+    Value: !GetAtt ChatLambdaRole.Arn
+  SessionsTableName:
+    Description: Nome da tabela DynamoDB de sessoes e feedback
+    Value: !Ref SessionsTable

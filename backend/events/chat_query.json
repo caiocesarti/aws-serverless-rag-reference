@@ -1,0 +1,8 @@
+{
+  "prompt": "Posso usar FGTS para comprar uma unidade no Parque das Palmeiras Residence e no Residencial Horizonte Barra? Quais são as metragens e regras de reforma de cada um?",
+  "session_id": "test-session-001",
+  "persona": "corretor",
+  "filters": {
+    "dominio_kb": ["empreendimentos", "credito", "condominio"]
+  }
+}

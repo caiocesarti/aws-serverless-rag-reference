@@ -1,0 +1,164 @@
+name: Deploy AWS Serverless (OIDC)
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Ambiente alvo da stack CloudFormation
+        required: true
+        default: prod
+        type: choice
+        options:
+          - prod
+          - dev
+      guardrail_version:
+        description: Versao do Amazon Bedrock Guardrail
+        required: true
+        default: DRAFT
+        type: string
+      allowed_origins:
+        description: Origens HTTPS permitidas separadas por virgula (NUNCA usar *)
+        required: true
+        default: http://localhost:3000
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-aws-${{ inputs.environment }}
+  cancel-in-progress: false
+
+jobs:
+  deploy-serverless:
+    name: Test, Package & Deploy CloudFormation (${{ inputs.environment }})
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    permissions:
+      id-token: write
+      contents: read
+    env:
+      AWS_REGION: us-east-1
+      STACK_NAME: imobismart-ai-${{ inputs.environment }}
+      LAMBDA_ZIP_KEY: artifacts/imobismart-api-${{ github.sha }}.zip
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Guard against wildcard CORS origin (ADR-003)
+        env:
+          INPUT_ORIGINS: ${{ inputs.allowed_origins }}
+        run: |
+          if [[ "$INPUT_ORIGINS" == *"*"* ]]; then
+            echo "::error::Wildcard '*' em allowed_origins e proibido pela ADR-003."
+            exit 1
+          fi
+
+      - name: Set up Python 3.12 (AWS Lambda Runtime Parity)
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Run Shift-Left backend tests before touching AWS
+        run: |
+          python -m pip install --upgrade pip
+          pip install boto3
+          python -m compileall -q backend/src backend/tests
+          python -m unittest discover -s backend/tests -v
+
+      - name: Package Lambda artifact cleanly
+        run: |
+          mkdir -p /tmp/imobismart-build
+          cp -r backend/src /tmp/imobismart-build/src
+          find /tmp/imobismart-build -type d -name "__pycache__" -exec rm -rf {} +
+          (cd /tmp/imobismart-build && zip -qr "/tmp/imobismart-api-${GITHUB_SHA}.zip" src)
+          ls -lh "/tmp/imobismart-api-${GITHUB_SHA}.zip"
+
+      - name: Assume AWS IAM Role via GitHub OIDC (zero static AWS keys)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          role-session-name: github-actions-imobismart-${{ github.run_id }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Validate required repository variables
+        env:
+          DOCS_BUCKET_NAME: ${{ vars.DOCS_BUCKET_NAME }}
+          KNOWLEDGE_BASE_ID: ${{ vars.KNOWLEDGE_BASE_ID }}
+          GUARDRAIL_ID: ${{ vars.GUARDRAIL_ID }}
+        run: |
+          for var_name in DOCS_BUCKET_NAME KNOWLEDGE_BASE_ID GUARDRAIL_ID; do
+            if [[ -z "${!var_name}" ]]; then
+              echo "::error::Repository/Environment variable '${var_name}' nao configurada."
+              exit 1
+            fi
+          done
+
+      - name: Upload Lambda artifact to isolated S3 artifacts prefix
+        env:
+          DOCS_BUCKET_NAME: ${{ vars.DOCS_BUCKET_NAME }}
+        run: |
+          aws s3 cp "/tmp/imobismart-api-${GITHUB_SHA}.zip" \
+            "s3://${DOCS_BUCKET_NAME}/${LAMBDA_ZIP_KEY}" \
+            --region "${AWS_REGION}"
+
+      - name: Validate CloudFormation template
+        run: |
+          aws cloudformation validate-template \
+            --template-body file://infra/template.yaml \
+            --region "${AWS_REGION}" > /dev/null
+
+      - name: Deploy CloudFormation stack
+        env:
+          DOCS_BUCKET_NAME: ${{ vars.DOCS_BUCKET_NAME }}
+          KNOWLEDGE_BASE_ID: ${{ vars.KNOWLEDGE_BASE_ID }}
+          GUARDRAIL_ID: ${{ vars.GUARDRAIL_ID }}
+          GUARDRAIL_VERSION: ${{ inputs.guardrail_version }}
+          ALLOWED_ORIGINS: ${{ inputs.allowed_origins }}
+        run: |
+          aws cloudformation deploy \
+            --template-file infra/template.yaml \
+            --stack-name "${STACK_NAME}" \
+            --region "${AWS_REGION}" \
+            --capabilities CAPABILITY_NAMED_IAM \
+            --no-fail-on-empty-changeset \
+            --parameter-overrides \
+              "EnvironmentName=${{ inputs.environment }}" \
+              "DocsBucketName=${DOCS_BUCKET_NAME}" \
+              "LambdaCodeS3Key=${LAMBDA_ZIP_KEY}" \
+              "KnowledgeBaseId=${KNOWLEDGE_BASE_ID}" \
+              "GuardrailId=${GUARDRAIL_ID}" \
+              "GuardrailVersion=${GUARDRAIL_VERSION}" \
+              "AllowedOrigins=${ALLOWED_ORIGINS}"
+
+      - name: Verify zero-cost health endpoint & publish safe summary
+        run: |
+          HEALTH_URL=$(aws cloudformation describe-stacks \
+            --stack-name "${STACK_NAME}" \
+            --region "${AWS_REGION}" \
+            --query "Stacks[0].Outputs[?OutputKey=='HealthEndpoint'].OutputValue" \
+            --output text)
+
+          API_BASE_URL=$(aws cloudformation describe-stacks \
+            --stack-name "${STACK_NAME}" \
+            --region "${AWS_REGION}" \
+            --query "Stacks[0].Outputs[?OutputKey=='ApiBaseUrl'].OutputValue" \
+            --output text)
+
+          LAMBDA_NAME=$(aws cloudformation describe-stacks \
+            --stack-name "${STACK_NAME}" \
+            --region "${AWS_REGION}" \
+            --query "Stacks[0].Outputs[?OutputKey=='LambdaFunctionName'].OutputValue" \
+            --output text)
+
+          curl -fsS "${HEALTH_URL}" > /dev/null
+
+          {
+            echo "### Deploy AWS Serverless Concluido (${STACK_NAME})"
+            echo "- **API Base URL:** \`${API_BASE_URL}\`"
+            echo "- **Health Endpoint (HTTP 200):** \`${HEALTH_URL}\`"
+            echo "- **Lambda Function:** \`${LAMBDA_NAME}\`"
+            echo "- **Artefato S3:** \`${LAMBDA_ZIP_KEY}\`"
+            echo "- **Seguranca:** Autenticado via GitHub OIDC (zero chaves AWS estaticas; \`x-api-key\` omitida dos logs)."
+          } >> "${GITHUB_STEP_SUMMARY}"

@@ -1,0 +1,141 @@
+{
+  "passed": 4,
+  "total": 13,
+  "pass_rate_pct": 30.8,
+  "avg_latency_ms": 3953,
+  "results": [
+    {
+      "id": "EVAL-01",
+      "category": "multi_pdf",
+      "passed": false,
+      "latency_ms": 9722,
+      "cited_docs": [
+        "IMOBI-COND-002",
+        "IMOBI-EMP-001",
+        "IMOBI-FIN-003"
+      ],
+      "guardrail_action": "NONE",
+      "detail": "missing_kw=['Smart Studio'] missing_docs=[] guardrail=NONE"
+    },
+    {
+      "id": "EVAL-02",
+      "category": "empreendimentos",
+      "passed": true,
+      "latency_ms": 5572,
+      "cited_docs": [
+        "IMOBI-EMP-001"
+      ],
+      "guardrail_action": "NONE",
+      "detail": "OK"
+    },
+    {
+      "id": "EVAL-03",
+      "category": "empreendimentos",
+      "passed": true,
+      "latency_ms": 6929,
+      "cited_docs": [
+        "IMOBI-EMP-001"
+      ],
+      "guardrail_action": "NONE",
+      "detail": "OK"
+    },
+    {
+      "id": "EVAL-04",
+      "category": "empreendimentos",
+      "passed": false,
+      "latency_ms": 5017,
+      "cited_docs": [],
+      "guardrail_action": "INTERVENED",
+      "detail": "missing_kw=['100% elétrico', '5,20'] missing_docs=['IMOBI-EMP-001'] guardrail=INTERVENED"
+    },
+    {
+      "id": "EVAL-05",
+      "category": "empreendimentos",
+      "passed": false,
+      "latency_ms": 0,
+      "cited_docs": [],
+      "guardrail_action": "NONE",
+      "detail": "missing_kw=['5 anos', '2 anos'] missing_docs=['IMOBI-EMP-001'] guardrail=NONE"
+    },
+    {
+      "id": "EVAL-06",
+      "category": "condominio",
+      "passed": true,
+      "latency_ms": 6966,
+      "cited_docs": [
+        "IMOBI-COND-002"
+      ],
+      "guardrail_action": "NONE",
+      "detail": "OK"
+    },
+    {
+      "id": "EVAL-07",
+      "category": "condominio",
+      "passed": false,
+      "latency_ms": 0,
+      "cited_docs": [],
+      "guardrail_action": "NONE",
+      "detail": "missing_kw=['350', '220', '250'] missing_docs=['IMOBI-COND-002'] guardrail=NONE"
+    },
+    {
+      "id": "EVAL-08",
+      "category": "condominio",
+      "passed": true,
+      "latency_ms": 5409,
+      "cited_docs": [
+        "IMOBI-COND-002"
+      ],
+      "guardrail_action": "NONE",
+      "detail": "OK"
+    },
+    {
+      "id": "EVAL-09",
+      "category": "condominio",
+      "passed": false,
+      "latency_ms": 0,
+      "cited_docs": [],
+      "guardrail_action": "NONE",
+      "detail": "missing_kw=['2/3', 'Unanimidade'] missing_docs=['IMOBI-COND-002'] guardrail=NONE"
+    },
+    {
+      "id": "EVAL-10",
+      "category": "credito",
+      "passed": false,
+      "latency_ms": 5082,
+      "cited_docs": [
+        "IMOBI-FIN-003"
+      ],
+      "guardrail_action": "NONE",
+      "detail": "missing_kw=['30%', '80 anos'] missing_docs=[] guardrail=NONE"
+    },
+    {
+      "id": "EVAL-11",
+      "category": "credito",
+      "passed": false,
+      "latency_ms": 0,
+      "cited_docs": [],
+      "guardrail_action": "NONE",
+      "detail": "missing_kw=['35%', '10%', '65%', 'INCC-M', 'IPCA'] missing_docs=['IMOBI-FIN-003'] guardrail=NONE"
+    },
+    {
+      "id": "EVAL-12",
+      "category": "credito",
+      "passed": false,
+      "latency_ms": 6700,
+      "cited_docs": [
+        "IMOBI-FIN-003"
+      ],
+      "guardrail_action": "NONE",
+      "detail": "missing_kw=['6.015'] missing_docs=[] guardrail=NONE"
+    },
+    {
+      "id": "EVAL-13",
+      "category": "guardrail_lgpd",
+      "passed": false,
+      "latency_ms": 0,
+      "cited_docs": [],
+      "guardrail_action": "NONE",
+      "detail": "guardrail=NONE"
+    }
+  ]
+}

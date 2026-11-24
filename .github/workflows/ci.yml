@@ -1,0 +1,125 @@
+name: CI DevSecOps
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  secret-scan:
+    name: Secret Scan (Gitleaks)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository with full history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install Gitleaks CLI
+        env:
+          GITLEAKS_VERSION: '8.24.2'
+        run: |
+          curl -fsSL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" -o /tmp/gitleaks.tar.gz
+          tar -xzf /tmp/gitleaks.tar.gz -C /tmp gitleaks
+          sudo mv /tmp/gitleaks /usr/local/bin/gitleaks
+          gitleaks version
+
+      - name: Scan repository for hardcoded secrets
+        run: gitleaks detect --source . --redact --verbose --no-banner
+
+  backend-ci:
+    name: Backend Python 3.12 (Lint, SAST & Unit Tests)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12 (AWS Lambda Runtime Parity)
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install runtime and DevSecOps tooling
+        run: |
+          python -m pip install --upgrade pip
+          pip install boto3 ruff bandit
+
+      - name: Compile check (syntax validation)
+        run: python -m compileall -q backend/src backend/tests
+
+      - name: Lint Python with Ruff
+        run: ruff check backend/src backend/tests
+
+      - name: Run SAST security scan with Bandit
+        run: bandit -r backend/src -ll
+
+      - name: Run backend unit tests
+        run: python -m unittest discover -s backend/tests -v
+
+  frontend-ci:
+    name: Frontend Next.js 15 (Typecheck, Build & Audit)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: apps/web/package-lock.json
+
+      - name: Install dependencies cleanly
+        run: npm --prefix apps/web ci
+
+      - name: Run strict TypeScript typecheck
+        run: npm --prefix apps/web run typecheck
+
+      - name: Run production Next.js build
+        run: npm --prefix apps/web run build
+
+      - name: Audit high/critical npm vulnerabilities
+        run: npm --prefix apps/web audit --audit-level=high
+
+  iac-security:
+    name: IaC Validation & Security (cfn-lint + Checkov)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install cfn-lint and Checkov
+        run: |
+          python -m pip install --upgrade pip
+          pip install cfn-lint checkov
+
+      - name: Validate CloudFormation template (cfn-lint)
+        run: cfn-lint infra/template.yaml
+
+      - name: Audit CloudFormation security policies (Checkov)
+        # Skips explicitamente documentados nas ADRs do projeto:
+        # - ADR-002 (FinOps sem WAF/NAT/KMS CMK/Cache/X-Ray): CKV2_AWS_29, CKV2_AWS_4, CKV2_AWS_51,
+        #   CKV_AWS_117, CKV_AWS_119, CKV_AWS_120, CKV_AWS_158, CKV_AWS_173, CKV_AWS_28,
+        #   CKV_AWS_50, CKV_AWS_73, CKV_AWS_76, CKV_AWS_115, CKV_AWS_116, CKV_AWS_225, CKV_AWS_308, CKV_AWS_237
+        # - ADR-004 (Acoes Bedrock sem suporte a resource-level ARN, restritas via aws:RequestedRegion): CKV_AWS_111, CKV_AWS_356
+        # Todos os demais checks de seguranca permanecem bloqueantes.
+        run: |
+          checkov -f infra/template.yaml \
+            --framework cloudformation \
+            --compact \
+            --quiet \
+            --skip-check CKV2_AWS_29,CKV2_AWS_4,CKV2_AWS_51,CKV_AWS_117,CKV_AWS_119,CKV_AWS_120,CKV_AWS_158,CKV_AWS_173,CKV_AWS_28,CKV_AWS_50,CKV_AWS_73,CKV_AWS_76,CKV_AWS_115,CKV_AWS_116,CKV_AWS_225,CKV_AWS_308,CKV_AWS_237,CKV_AWS_111,CKV_AWS_356
