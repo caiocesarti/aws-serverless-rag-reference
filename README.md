@@ -196,6 +196,9 @@ Todas as gravações em vídeo (`.mp4`), capturas de tela e evidências da infra
 | ![Filtros e Light Mode](docs/evidence/screenshots/04-filtros-perfil-light.png) | **Filtros Pinecone, Persona & Tema:** `Corretor → Comprador`, `2 filtros ativos`, Dark ↔ Light Mode | [demo-01c-filtros-perfil-darkmode.mp4](docs/evidence/demo-01c-filtros-perfil-darkmode.mp4) |
 | ![PDF Drawer #page=1](docs/evidence/screenshots/06-pdf-drawer-presigned-page.png) | **Chat RAG + Citações `[1 · p.1]` + PDF `#page=1`:** resposta real Bedrock + PDF inline via S3 Pre-signed URL | [demo-rag-citacoes-pagina-pdf.mp4](docs/evidence/demo-rag-citacoes-pagina-pdf.mp4) |
 
+**Infraestrutura provisionada (prints sanitizados em [docs/evidence/README.md](docs/evidence/README.md)):**
+[AWS Lambda](docs/evidence/screenshots/07-aws-lambda-overview.png) · [API Gateway REST](docs/evidence/screenshots/08-aws-api-gateway.png) · [S3 Privado (`artifacts/` + `documents/`)](docs/evidence/screenshots/09-aws-s3-private-bucket.png) · [Bedrock Knowledge Base](docs/evidence/screenshots/10-aws-bedrock-kb.png) · [Pinecone Serverless (`81` vetores)](docs/evidence/screenshots/11-pinecone-serverless-index.png)
+
 ---
 
 ## 🗂️ 7. Stack Verificada & Estrutura do Monorepo

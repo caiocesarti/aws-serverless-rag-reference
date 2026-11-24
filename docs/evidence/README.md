@@ -28,6 +28,18 @@ Este diretório reúne as gravações `.mp4` e capturas de tela geradas em valid
 
 ---
 
+## ☁️ Evidências da Infraestrutura Provisionada (AWS `us-east-1` & Pinecone)
+
+*(Account ID, IDs de recursos, ARNs de segredos e hosts privados foram tarjados para publicação em repositório aberto.)*
+
+7. **AWS Lambda (`imobismart-api-prod` · Trigger API Gateway · Zero Layers):** ![AWS Lambda Overview](./screenshots/07-aws-lambda-overview.png)
+8. **Amazon API Gateway REST (`imobismart-api-prod` · Regional · Protected via Usage Plan + `x-api-key` + BFF):** ![AWS API Gateway](./screenshots/08-aws-api-gateway.png)
+9. **Amazon S3 Privado (Prefixos isolados `artifacts/` e `documents/`):** ![AWS S3 Bucket](./screenshots/09-aws-s3-private-bucket.png)
+10. **Amazon Bedrock Knowledge Base (`imobismart-kb-prod` · `ImobiSmartBedrockKBRole` · Hierarchical Chunking + FM Parsing + Titan Embed v2 `1024d`):** ![AWS Bedrock Knowledge Base](./screenshots/10-aws-bedrock-kb.png)
+11. **Pinecone Serverless (`imobismart-kb` · `81` vetores · `0.64 MB / 2 GB` · `us-east-1` · Metadados escalares planos):** ![Pinecone Serverless Index](./screenshots/11-pinecone-serverless-index.png)
+
+---
+
 ## ✅ Resumo da Auditoria de Rede & Segurança
 
 - **HTTP / Rede:** 0 erros `4xx`/`5xx` em todas as requisições da sessão (`GET /`, `GET /api/health`, `POST /api/chat`, imagens `/_next/image` e PDF via S3 Pre-signed URL com `200 OK`).
