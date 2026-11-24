@@ -1,11 +1,28 @@
 import { NextResponse } from "next/server";
 
+import { isDemoModeEnabled } from "@/lib/demo-rag";
 import { createRequestId } from "@/lib/security";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
   const requestId = createRequestId();
+
+  if (isDemoModeEnabled()) {
+    return NextResponse.json(
+      {
+        status: "demo",
+        mode: "demo",
+        service: "imobismart-ai-portfolio-demo",
+        version: "1.0.0",
+        kb_configured: true,
+        guardrail_configured: true,
+        checked_at: new Date().toISOString(),
+      },
+      { status: 200, headers: { "X-Request-Id": requestId, "Cache-Control": "no-store" } }
+    );
+  }
+
   const baseUrl = (process.env.AWS_API_BASE_URL ?? "").trim().replace(/\/+$/, "");
 
   if (!baseUrl) {

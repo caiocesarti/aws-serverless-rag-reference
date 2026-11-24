@@ -2,6 +2,7 @@ import { metric } from "@vercel/functions";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
+import { buildDemoChatResponse, isDemoModeEnabled } from "@/lib/demo-rag";
 import {
   assertSameOrigin,
   createRequestId,
@@ -94,7 +95,29 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // 5. Server-to-Server call to AWS API Gateway (x-api-key NEVER exposed to browser)
+  // 5. Optional FinOps Demo Mode (zero AWS cost when AWS stack is in standby)
+  if (isDemoModeEnabled()) {
+    const demoData = buildDemoChatResponse(parsed.data, requestId);
+    const demoOutcome =
+      demoData.guardrail_action === "INTERVENED" ? "demo_guardrail" : "demo_success";
+    metric("imobismart.chat.requests", 1, {
+      outcome: demoOutcome,
+      persona: parsed.data.persona,
+    });
+    metric("imobismart.chat.latency_ms", Math.round(performance.now() - startedAt), {
+      outcome: demoOutcome,
+    });
+    return NextResponse.json(demoData, {
+      status: 200,
+      headers: {
+        ...rate.headers,
+        "X-Request-Id": requestId,
+        "Cache-Control": "no-store",
+      },
+    });
+  }
+
+  // 6. Server-to-Server call to AWS API Gateway (x-api-key NEVER exposed to browser)
   let outcome = "error";
   try {
     const { apiBaseUrl, apiKey } = getAwsBackendConfig();

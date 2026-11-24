@@ -2,6 +2,7 @@ import { metric } from "@vercel/functions";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
+import { isDemoModeEnabled } from "@/lib/demo-rag";
 import {
   assertSameOrigin,
   createRequestId,
@@ -58,6 +59,22 @@ export async function POST(req: NextRequest) {
       { error: "Payload de feedback invalido.", request_id: requestId },
       {
         status: 400,
+        headers: { ...rate.headers, "X-Request-Id": requestId, "Cache-Control": "no-store" },
+      }
+    );
+  }
+
+  if (isDemoModeEnabled()) {
+    metric("imobismart.feedback.recorded", 1, { outcome: "demo", rating: parsed.data.rating });
+    return NextResponse.json(
+      {
+        status: "recorded",
+        mode: "demo",
+        message_id: parsed.data.message_id,
+        rating: parsed.data.rating,
+      },
+      {
+        status: 200,
         headers: { ...rate.headers, "X-Request-Id": requestId, "Cache-Control": "no-store" },
       }
     );

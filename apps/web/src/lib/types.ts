@@ -39,7 +39,8 @@ export interface ChatMessage {
 }
 
 export interface HealthResponse {
-  status: "ok" | "degraded" | "offline";
+  status: "ok" | "demo" | "degraded" | "offline";
+  mode?: "live" | "demo";
   service?: string;
   version?: string;
   kb_configured?: boolean;

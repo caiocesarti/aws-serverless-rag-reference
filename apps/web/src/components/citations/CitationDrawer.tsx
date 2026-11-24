@@ -70,7 +70,9 @@ export function CitationDrawer({ citation, onClose }: CitationDrawerProps) {
         <div className="flex items-center justify-between gap-2 border-b border-slate-200/80 bg-emerald-50/70 px-5 py-2.5 text-[11px] text-emerald-900 dark:border-slate-800 dark:bg-emerald-950/30 dark:text-emerald-200">
           <span className="inline-flex items-center gap-1.5 font-medium">
             <Lock className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
-            S3 Privado · Pre-signed URL temporária (10 min · SigV4)
+            {pdfUrl
+              ? "S3 Privado · Pre-signed URL temporária (10 min · SigV4)"
+              : "Modo Portfólio (FinOps) · Metadados e trecho verificados da KB oficial"}
           </span>
           {pdfUrl ? (
             <a
@@ -115,8 +117,16 @@ export function CitationDrawer({ citation, onClose }: CitationDrawerProps) {
               />
             </div>
           ) : (
-            <div className="rounded-xl border border-dashed border-slate-300 p-6 text-center text-xs text-slate-500 dark:border-slate-700">
-              URL temporária do PDF indisponível para esta citação.
+            <div className="rounded-xl border border-dashed border-sky-200 bg-sky-50/50 p-6 text-center dark:border-sky-900/60 dark:bg-sky-950/20">
+              <p className="text-xs font-bold text-slate-800 dark:text-slate-100">
+                Pré-visualização S3 em Standby (Modo Portfólio FinOps)
+              </p>
+              <p className="mt-1.5 text-xs leading-relaxed text-slate-600 dark:text-slate-400">
+                Documento oficial <span className="font-mono font-semibold">{displayFileName}</span>
+                {citation.pagina ? ` (Página ${citation.pagina})` : ""}. Em produção com a stack
+                AWS ativa, este painel carrega o PDF diretamente do bucket S3 privado via Pre-signed
+                URL SigV4 (10 min).
+              </p>
             </div>
           )}
         </div>

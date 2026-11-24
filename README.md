@@ -109,7 +109,8 @@ imobismart-ai/
 ├── knowledge-base/               # 3 PDFs oficiais (IMOBI-EMP-001, COND-002, FIN-003) + .metadata.json + sync_kb.ps1
 └── docs/
     ├── architecture/adr/         # 7 ADRs formais
-    └── evaluation/               # Golden Dataset (13 casos) + runner automatizado
+    ├── evaluation/               # Golden Dataset (13 casos) + runner automatizado
+    └── evidence/                 # Evidências QA (.mp4 e screenshots de produção)
 ```
 
 ---
@@ -146,6 +147,15 @@ Acesse `http://localhost:3000`.
    - `ALLOWED_ORIGINS` = `https://<seu-dominio>.vercel.app`
    - `RATE_LIMIT_MAX_REQUESTS` = `15` | `RATE_LIMIT_WINDOW_SECONDS` = `60`
 3. Após obter a URL HTTPS da Vercel, atualize o parâmetro `AllowedOrigins` na stack AWS executando novamente `.\infra\deploy.ps1 -AllowedOrigins "https://<seu-dominio>.vercel.app"`.
+
+### 5.4 Modo Portfólio FinOps (`DEMO_MODE=true` — US\$ 0/mês sem AWS ativa)
+Caso queira desligar ou remover a infraestrutura AWS após demonstrações e ainda manter o site 100% navegável na Vercel:
+1. Remova as variáveis `AWS_API_BASE_URL` e `AWS_API_KEY` nas *Environment Variables* da Vercel.
+2. Defina `DEMO_MODE=true` (server-only) e faça redeploy na Vercel.
+3. O site preserva todos os controles de segurança (CSP/HSTS, Origin/CSRF, Rate Limit, Zod), exibe o selo **Modo Demo · FinOps**, mantém portfólio + Simulador SAC/Price ativos e responde no chat com citações verídicas (documento + página) e simulação do Guardrail LGPD.
+
+### 5.5 Evidências de QA End-to-End (`.mp4` e Screenshots)
+Consulte [docs/evidence/README.md](docs/evidence/README.md) para assistir às gravações reais de navegação, simulador SAC/Price, filtros Pinecone, Dark Mode e consultas RAG ao vivo com abertura de PDFs S3 em `#page=N`.
 
 ---
 

@@ -277,6 +277,14 @@ export function ImobiSmartWorkspace() {
             <span className="truncate text-sm font-bold text-slate-900 dark:text-white">
               {selectedProperty ? selectedProperty.nome : "ImobiSmart AI"}
             </span>
+            {health.status === "demo" ? (
+              <span
+                title="Stack AWS em standby (FinOps) — portfólio, simulador SAC/Price e chat demonstrativo ativos a US$ 0/mês"
+                className="hidden rounded-full border border-sky-200 bg-sky-50 px-2.5 py-0.5 text-[11px] font-semibold text-sky-700 sm:inline-flex dark:border-sky-800/70 dark:bg-sky-950/60 dark:text-sky-300"
+              >
+                Modo Demo · FinOps
+              </span>
+            ) : null}
             {dominios.length > 0 ? (
               <span className="hidden rounded-full bg-sky-50 px-2 py-0.5 text-[11px] font-semibold text-sky-700 sm:inline-flex dark:bg-sky-950 dark:text-sky-300">
                 {dominios.length} filtro{dominios.length > 1 ? "s" : ""} ativo

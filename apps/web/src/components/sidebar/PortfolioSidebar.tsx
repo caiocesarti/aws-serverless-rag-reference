@@ -66,9 +66,18 @@ export function PortfolioSidebar({
   const healthDot =
     health.status === "ok"
       ? "bg-emerald-500"
-      : health.status === "degraded"
-        ? "bg-amber-500"
-        : "bg-slate-400";
+      : health.status === "demo"
+        ? "bg-sky-500"
+        : health.status === "degraded"
+          ? "bg-amber-500"
+          : "bg-slate-400";
+
+  const healthLabel =
+    health.status === "ok"
+      ? "Bedrock Online"
+      : health.status === "demo"
+        ? "Modo Portfólio"
+        : "Conectando...";
 
   const content = (
     <aside className="flex h-full w-72 flex-col border-r border-slate-200/80 bg-white dark:border-slate-800/80 dark:bg-[#0D1320]">
@@ -265,7 +274,7 @@ export function PortfolioSidebar({
       <div className="flex items-center justify-between border-t border-slate-200/80 px-4 py-3 dark:border-slate-800/80">
         <span className="flex items-center gap-2 text-[11px] font-medium text-slate-600 dark:text-slate-400">
           <span className={`h-2 w-2 rounded-full ${healthDot}`} />
-          {health.status === "ok" ? "Bedrock Online" : "Conectando..."}
+          {healthLabel}
         </span>
         <button
           type="button"
