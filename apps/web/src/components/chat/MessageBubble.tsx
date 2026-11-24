@@ -168,14 +168,19 @@ export const MessageBubble = memo(function MessageBubble({
                   const idx = Number.parseInt(href.replace("#cite-", ""), 10);
                   const found = citationMap.get(idx);
                   if (found) {
+                    const pageTag = found.pagina ? ` · p.${found.pagina}` : "";
+                    const tooltip = `Inspecionar ${found.codigo_doc} — ${found.titulo}${
+                      found.pagina ? ` (Página ${found.pagina})` : ""
+                    }`;
                     return (
                       <button
                         type="button"
                         onClick={() => onOpenCitation(found)}
-                        title={`Inspecionar ${found.codigo_doc}: ${found.titulo}`}
+                        title={tooltip}
                         className="mx-0.5 inline-flex items-center rounded-md bg-sky-100 px-1.5 py-0.5 font-mono text-[11px] font-bold text-sky-800 transition-colors hover:bg-sky-600 hover:text-white dark:bg-sky-950 dark:text-sky-300 dark:hover:bg-sky-500 dark:hover:text-white"
                       >
-                        {children}
+                        [{found.index}
+                        {pageTag}]
                       </button>
                     );
                   }
@@ -201,24 +206,49 @@ export const MessageBubble = memo(function MessageBubble({
         {citations.length > 0 ? (
           <div className="mt-4 border-t border-slate-100 pt-3 dark:border-slate-800">
             <p className="mb-2 text-[10px] font-semibold tracking-wider text-slate-500 uppercase dark:text-slate-400">
-              Fontes Oficiais Consultadas (clique para abrir o PDF via Pre-signed URL)
+              Fontes Oficiais Consultadas (documento e página · clique para abrir o PDF)
             </p>
-            <div className="flex flex-wrap gap-1.5">
-              {citations.map((c) => (
-                <button
-                  key={`${message.id}-cite-${c.index}`}
-                  type="button"
-                  onClick={() => onOpenCitation(c)}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-medium text-slate-700 transition-all hover:border-sky-500 hover:bg-sky-50 hover:text-sky-900 dark:border-slate-700 dark:bg-slate-800/70 dark:text-slate-200 dark:hover:border-sky-500 dark:hover:bg-sky-950/60"
-                >
-                  <FileText className="h-3 w-3 text-sky-600 dark:text-sky-400" />
-                  <span className="font-mono font-bold">[{c.index}]</span>
-                  <span className="font-mono">{c.codigo_doc}</span>
-                  {c.versao ? (
-                    <span className="text-[10px] text-slate-400">v{c.versao}</span>
-                  ) : null}
-                </button>
-              ))}
+            <div className="grid gap-2 sm:grid-cols-2">
+              {citations.map((c) => {
+                const fileName = c.arquivo || c.s3_key?.split("/").pop() || "";
+                return (
+                  <button
+                    key={`${message.id}-cite-${c.index}`}
+                    type="button"
+                    onClick={() => onOpenCitation(c)}
+                    className="group flex items-start gap-2.5 rounded-xl border border-slate-200 bg-slate-50/90 p-2.5 text-left transition-all hover:border-sky-500 hover:bg-sky-50/70 dark:border-slate-700/80 dark:bg-slate-800/60 dark:hover:border-sky-500 dark:hover:bg-sky-950/40"
+                  >
+                    <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white text-sky-600 shadow-2xs ring-1 ring-slate-200/80 group-hover:bg-sky-600 group-hover:text-white dark:bg-slate-900 dark:text-sky-400 dark:ring-slate-700">
+                      <FileText className="h-3.5 w-3.5" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span className="font-mono text-[11px] font-bold text-slate-900 dark:text-white">
+                          [{c.index}] {c.codigo_doc}
+                        </span>
+                        {c.pagina ? (
+                          <span className="rounded-md bg-sky-100 px-1.5 py-0.5 font-mono text-[10px] font-bold text-sky-800 dark:bg-sky-950 dark:text-sky-300">
+                            Pág. {c.pagina}
+                          </span>
+                        ) : null}
+                        {c.versao ? (
+                          <span className="font-mono text-[10px] text-slate-400">
+                            v{c.versao}
+                          </span>
+                        ) : null}
+                      </div>
+                      <p className="mt-0.5 line-clamp-1 text-xs font-medium text-slate-700 group-hover:text-sky-900 dark:text-slate-200 dark:group-hover:text-sky-200">
+                        {c.titulo}
+                      </p>
+                      {fileName ? (
+                        <p className="mt-0.5 truncate font-mono text-[10px] text-slate-400 dark:text-slate-500">
+                          {fileName}
+                        </p>
+                      ) : null}
+                    </div>
+                  </button>
+                );
+              })}
             </div>
           </div>
         ) : null}

@@ -164,6 +164,7 @@ class TestRagAndHandler(unittest.TestCase):
                                 "dominio_kb": "credito",
                                 "versao": "4.0",
                                 "vigencia": "2026-11-01",
+                                "x-amz-bedrock-kb-document-page-number": 2.0,
                             },
                         }
                     ],
@@ -198,7 +199,98 @@ class TestRagAndHandler(unittest.TestCase):
         self.assertEqual(
             body["citations"][0]["presigned_url"], "https://s3.presigned/imobi-fin-003.pdf"
         )
+        self.assertEqual(body["citations"][0]["pagina"], 2)
+        self.assertEqual(
+            body["citations"][0]["arquivo"], "manual-credito-financiamento-imobi-fin-003.pdf"
+        )
+        self.assertEqual(
+            body["citations"][0]["titulo"],
+            "Manual Técnico de Crédito Imobiliário e Financiamento Habitacional",
+        )
         mock_table.put_item.assert_called_once()
+
+    def test_extracts_distinct_pages_from_same_pdf_and_caches_presign(self) -> None:
+        settings = _make_settings()
+        mock_s3 = MagicMock()
+        mock_s3.generate_presigned_url.return_value = "https://s3.presigned/imobi-emp-001.pdf"
+        presigner = S3Presigner(
+            bucket_name=settings.docs_bucket_name,
+            allowed_prefix=settings.docs_prefix,
+            s3_client=mock_s3,
+        )
+        rag = BedrockRagService(settings=settings, presigner=presigner, bedrock_client=MagicMock())
+        pdf_uri = "s3://imobismart-kb-docs-111122223333/documents/catalogo-tecnico-empreendimentos-imobi-emp-001.pdf"
+        answer = "Linha 1 da página 1.\nLinha 2 da página 4.\nLinha 3 novamente da página 1."
+        raw_citations = [
+            {
+                "generatedResponsePart": {
+                    "textResponsePart": {"text": "Linha 1 da página 1."}
+                },
+                "retrievedReferences": [
+                    {
+                        "content": {"text": "Resumo p1"},
+                        "location": {"s3Location": {"uri": pdf_uri}},
+                        "metadata": {
+                            "codigo_doc": "IMOBI-EMP-001",
+                            "x-amz-bedrock-kb-document-page-number": 1.0,
+                        },
+                    }
+                ],
+            },
+            {
+                "generatedResponsePart": {
+                    "textResponsePart": {"text": "Linha 2 da página 4."}
+                },
+                "retrievedReferences": [
+                    {
+                        "content": {"text": "Detalhes p4"},
+                        "location": {"s3Location": {"uri": pdf_uri}},
+                        "metadata": {
+                            "codigo_doc": "IMOBI-EMP-001",
+                            "x-amz-bedrock-kb-document-page-number": 4.0,
+                        },
+                    }
+                ],
+            },
+            {
+                "generatedResponsePart": {
+                    "textResponsePart": {"text": "Linha 3 novamente da página 1."}
+                },
+                "retrievedReferences": [
+                    {
+                        "content": {"text": "Resumo p1 duplicado"},
+                        "location": {"s3Location": {"uri": pdf_uri}},
+                        "metadata": {
+                            "codigo_doc": "IMOBI-EMP-001",
+                            "x-amz-bedrock-kb-document-page-number": 1.0,
+                        },
+                    }
+                ],
+            },
+        ]
+        marked, citations = rag._extract_citations(answer, raw_citations)
+        self.assertEqual(len(citations), 2)
+        self.assertEqual(citations[0]["pagina"], 1)
+        self.assertEqual(citations[1]["pagina"], 4)
+        self.assertEqual(
+            citations[0]["arquivo"], "catalogo-tecnico-empreendimentos-imobi-emp-001.pdf"
+        )
+        self.assertIn("página 1. [1]", marked)
+        self.assertIn("página 4. [2]", marked)
+        # Same PDF URI should be presigned only once
+        mock_s3.generate_presigned_url.assert_called_once()
+        # Invalid or missing page values must safely yield None
+        self.assertIsNone(BedrockRagService._parse_page_number({}))
+        self.assertIsNone(
+            BedrockRagService._parse_page_number(
+                {"x-amz-bedrock-kb-document-page-number": True}
+            )
+        )
+        self.assertIsNone(
+            BedrockRagService._parse_page_number(
+                {"x-amz-bedrock-kb-document-page-number": "invalid"}
+            )
+        )
 
     def test_citation_marker_never_splits_accented_words(self) -> None:
         settings = _make_settings()

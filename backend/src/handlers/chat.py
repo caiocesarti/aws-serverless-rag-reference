@@ -203,7 +203,7 @@ def lambda_handler(
             message_id = str(uuid.uuid4())
             effective_session = result["session_id"] or str(uuid.uuid4())
 
-            citation_codes = [c["codigo_doc"] for c in result["citations"]]
+            citation_codes = list(dict.fromkeys(c["codigo_doc"] for c in result["citations"]))
             try:
                 session_store.record_turn(
                     session_id=effective_session,

@@ -18,6 +18,12 @@ EMPREENDIMENTO_LABELS: dict[str, str] = {
     "smart-studio-metropole": "Smart Studio Metropole (EMP-SM-2028, Compacto/Investidor, Caminho das Arvores, Short-Stay)",
 }
 
+DOCUMENT_DISPLAY_TITLES: dict[str, str] = {
+    "IMOBI-EMP-001": "Catálogo Técnico de Empreendimentos e Memoriais Descritivos",
+    "IMOBI-COND-002": "Convenção Padrão de Condomínio e Regimento Interno",
+    "IMOBI-FIN-003": "Manual Técnico de Crédito Imobiliário e Financiamento Habitacional",
+}
+
 SYSTEM_PROMPT_TEMPLATE = """Voce e o ImobiSmart AI, assistente tecnico oficial da ImobiSmart Incorporadora (Salvador/BA).
 Responda SEMPRE em portugues do Brasil claro, objetivo e estruturado em Markdown (use listas e tabelas quando comparar empreendimentos ou condicoes).
 
@@ -146,12 +152,33 @@ class BedrockRagService:
             payload["sessionId"] = req.session_id
         return payload
 
+    @staticmethod
+    def _parse_page_number(meta: dict[str, Any]) -> int | None:
+        """Extract 1-based PDF page number from Bedrock KB metadata."""
+        raw = meta.get("x-amz-bedrock-kb-document-page-number")
+        if raw is None or isinstance(raw, bool):
+            return None
+        try:
+            page = int(float(raw))
+            return page if page >= 1 else None
+        except (TypeError, ValueError):
+            return None
+
+    @staticmethod
+    def _extract_filename(s3_key: str | None, s3_uri: str) -> str:
+        """Return the PDF basename from an S3 key or URI."""
+        source = (s3_key or s3_uri or "").strip().rstrip("/")
+        if not source:
+            return ""
+        return source.rsplit("/", 1)[-1]
+
     def _extract_citations(
         self, answer: str, raw_citations: list[dict[str, Any]]
     ) -> tuple[str, list[dict[str, Any]]]:
-        """Deduplicate source PDFs, attach short-lived S3 Pre-signed URLs, and insert [n] markers."""
+        """Deduplicate source PDFs by (document, page), attach S3 Pre-signed URLs, and insert [n] markers."""
         citations: list[dict[str, Any]] = []
-        index_by_uri: dict[str, int] = {}
+        index_by_source_page: dict[tuple[str, int | None], int] = {}
+        presigned_cache: dict[str, tuple[str | None, str | None]] = {}
         inserts: list[tuple[int, str]] = []
 
         for cite in raw_citations:
@@ -167,19 +194,31 @@ class BedrockRagService:
                     or str(meta.get("x-amz-bedrock-kb-source-uri") or "")
                 )
                 snippet = ((ref.get("content") or {}).get("text") or "").strip()[:360]
+                page_number = self._parse_page_number(meta)
 
-                dedupe_key = s3_uri or str(meta.get("codigo_doc") or "source")
-                if dedupe_key in index_by_uri:
-                    num = index_by_uri[dedupe_key]
+                base_key = s3_uri or str(meta.get("codigo_doc") or "source")
+                dedupe_key = (base_key, page_number)
+                if dedupe_key in index_by_source_page:
+                    num = index_by_source_page[dedupe_key]
                 else:
-                    presigned_url, s3_key = self.presigner.presign_document_uri(s3_uri)
+                    if s3_uri not in presigned_cache:
+                        presigned_cache[s3_uri] = self.presigner.presign_document_uri(s3_uri)
+                    presigned_url, s3_key = presigned_cache[s3_uri]
                     num = len(citations) + 1
-                    index_by_uri[dedupe_key] = num
+                    index_by_source_page[dedupe_key] = num
+
+                    codigo_doc = str(meta.get("codigo_doc") or f"DOC-{num}")
+                    arquivo = self._extract_filename(s3_key, s3_uri)
+                    titulo = DOCUMENT_DISPLAY_TITLES.get(codigo_doc) or str(
+                        meta.get("titulo") or arquivo or "Documento Oficial"
+                    )
                     citations.append(
                         {
                             "index": num,
-                            "codigo_doc": str(meta.get("codigo_doc") or f"DOC-{num}"),
-                            "titulo": str(meta.get("titulo") or s3_key or "Documento Oficial"),
+                            "codigo_doc": codigo_doc,
+                            "titulo": titulo,
+                            "arquivo": arquivo,
+                            "pagina": page_number,
                             "dominio_kb": str(meta.get("dominio_kb") or "geral"),
                             "versao": str(meta.get("versao") or ""),
                             "vigencia": str(meta.get("vigencia") or ""),

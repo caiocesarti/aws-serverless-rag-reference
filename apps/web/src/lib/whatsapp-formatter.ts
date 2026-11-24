@@ -19,7 +19,14 @@ export function formatForWhatsApp(markdown: string, citations?: Citation[]): str
 
   if (citations && citations.length > 0) {
     const sources = citations
-      .map((c) => `• ${c.codigo_doc}${c.versao ? ` (v${c.versao})` : ""} — ${c.titulo}`)
+      .map((c) => {
+        const metaParts = [
+          c.versao ? `v${c.versao}` : "",
+          c.pagina ? `Pág. ${c.pagina}` : "",
+        ].filter(Boolean);
+        const suffix = metaParts.length > 0 ? ` (${metaParts.join(" · ")})` : "";
+        return `• ${c.codigo_doc}${suffix} — ${c.titulo}`;
+      })
       .join("\n");
     text += `\n\n_Base técnica oficial ImobiSmart:_\n${sources}`;
   }

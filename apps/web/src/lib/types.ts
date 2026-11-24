@@ -12,6 +12,8 @@ export interface Citation {
   index: number;
   codigo_doc: string;
   titulo: string;
+  arquivo?: string | null;
+  pagina?: number | null;
   dominio_kb: string;
   versao: string;
   vigencia: string;
