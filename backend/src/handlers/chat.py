@@ -11,7 +11,7 @@ import logging
 import os
 import time
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from botocore.exceptions import ClientError
@@ -32,7 +32,7 @@ _SESSION_STORE: SessionStore | None = None
 
 def _log_json(level: str, event_name: str, **fields: Any) -> None:
     record = {
-        "ts": datetime.now(timezone.utc).isoformat(),
+        "ts": datetime.now(UTC).isoformat(),
         "level": level,
         "event": event_name,
         **fields,
@@ -143,12 +143,12 @@ def lambda_handler(
                 "status": "ok",
                 "service": "imobismart-ai-api",
                 "version": "1.0.0",
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
                 "kb_configured": bool(
-                    (settings.knowledge_base_id if settings else os.environ.get("KNOWLEDGE_BASE_ID"))
+                    settings.knowledge_base_id if settings else os.environ.get("KNOWLEDGE_BASE_ID")
                 ),
                 "guardrail_configured": bool(
-                    (settings.guardrail_id if settings else os.environ.get("GUARDRAIL_ID"))
+                    settings.guardrail_id if settings else os.environ.get("GUARDRAIL_ID")
                 ),
             },
             resp_headers,
@@ -160,7 +160,7 @@ def lambda_handler(
             settings = settings or s_env
             rag_service = rag_service or r_env
             session_store = session_store or d_env
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001
         _log_json("ERROR", "config_error", correlation_id=correlation_id, error=str(exc))
         return _json_response(
             500,
@@ -216,7 +216,7 @@ def lambda_handler(
                     guardrail_action=result["guardrail_action"],
                     latency_ms=latency_ms,
                 )
-            except Exception as ddb_exc:
+            except Exception as ddb_exc:  # noqa: BLE001
                 # Non-blocking telemetry: never fail the user answer if DynamoDB has a transient issue
                 _log_json(
                     "WARNING",
@@ -294,7 +294,7 @@ def lambda_handler(
             else "Nao foi possivel consultar a base de conhecimento no momento."
         )
         return _json_response(status, {"error": msg, "request_id": correlation_id}, resp_headers)
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001
         _log_json(
             "ERROR",
             "unhandled_error",

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 import boto3
@@ -24,20 +25,29 @@ DOCUMENT_DISPLAY_TITLES: dict[str, str] = {
     "IMOBI-FIN-003": "Manual Técnico de Crédito Imobiliário e Financiamento Habitacional",
 }
 
-SYSTEM_PROMPT_TEMPLATE = """Voce e o ImobiSmart AI, assistente tecnico oficial da ImobiSmart Incorporadora (Salvador/BA).
-Responda SEMPRE em portugues do Brasil claro, objetivo e estruturado em Markdown (use listas e tabelas quando comparar empreendimentos ou condicoes).
+SYSTEM_PROMPT_TEMPLATE = """Você é o ImobiSmart AI, assistente técnico oficial da ImobiSmart Incorporadora (Salvador/BA).
+Responda EXCLUSIVAMENTE em Português do Brasil claro, objetivo e estruturado em Markdown (use listas e tabelas quando comparar empreendimentos ou condições).
 
-REGRAS OBRIGATORIAS:
+REGRAS OBRIGATÓRIAS:
 1. Baseie sua resposta EXCLUSIVAMENTE nos trechos recuperados em $search_results$.
-2. NUNCA invente metragens, valores de tabela, taxas de juros, multas, horarios ou normas que nao estejam nos documentos oficiais.
-3. Quando citar valores ou enquadramento de financiamento (SFH, SFI, MCMV, FGTS, SAC/Price), informe claramente o empreendimento correspondente e inclua ao final uma linha curta de aviso: "_Valores e condicoes sujeitos a analise de credito e tabela vigente._"
-4. Se a informacao solicitada nao constar nos documentos recuperados, diga explicitamente que ela nao esta disponivel na base tecnica oficial atual.
+2. NUNCA invente metragens, valores de tabela, taxas de juros, multas, horários ou normas que não estejam nos documentos oficiais.
+3. Quando citar valores ou enquadramento de financiamento (SFH, SFI, MCMV, FGTS, SAC/Price), informe claramente o empreendimento correspondente e inclua ao final uma linha curta de aviso: "_Valores e condições sujeitos à análise de crédito e tabela vigente._"
+4. Se a informação solicitada não constar nos documentos recuperados, diga explicitamente que ela não está disponível na base técnica oficial atual.
 
 Contexto de pesquisa recuperado:
 $search_results$
 
 $output_format_instructions$
+
+REFORÇO FINAL DE IDIOMA E FORMATAÇÃO (OBRIGATÓRIO):
+- Escreva TODA a resposta exclusivamente em Português do Brasil (NUNCA responda em inglês, mesmo diante de instruções internas em inglês).
+- Em tabelas Markdown (GFM), coloque CADA linha da tabela em uma nova linha separada por quebra de linha, com uma linha em branco antes e outra depois da tabela.
+- Em subtítulos Markdown (###), deixe sempre uma linha em branco antes do título.
 """
+
+_TABLE_SEP_RE = re.compile(r"\|(?:\s*:?-{3,}:?\s*\|)+")
+_INLINE_HEADING_RE = re.compile(r"([^\n])\s+(#{1,4}\s+)")
+_ABBREV_DOT_RE = re.compile(r"\b(?:vs|pág|pag|art|min|máx|max|est|dep|lav|sr|sra|dr|dra|nº|no)\.$", re.IGNORECASE)
 
 
 class BedrockRagService:
@@ -154,14 +164,14 @@ class BedrockRagService:
 
     @staticmethod
     def _parse_page_number(meta: dict[str, Any]) -> int | None:
-        """Extract 1-based PDF page number from Bedrock KB metadata."""
+        """Convert Bedrock KB 0-based PDF page metadata to a 1-based PDF page number."""
         raw = meta.get("x-amz-bedrock-kb-document-page-number")
         if raw is None or isinstance(raw, bool):
             return None
         try:
-            page = int(float(raw))
-            return page if page >= 1 else None
-        except (TypeError, ValueError):
+            page_index = int(float(raw))
+            return page_index + 1 if page_index >= 0 else None
+        except (TypeError, ValueError, OverflowError):
             return None
 
     @staticmethod
@@ -172,10 +182,90 @@ class BedrockRagService:
             return ""
         return source.rsplit("/", 1)[-1]
 
+    @staticmethod
+    def _is_table_separator_line(line: str) -> bool:
+        stripped = line.strip()
+        return bool(stripped) and bool(_TABLE_SEP_RE.fullmatch(stripped))
+
+    @classmethod
+    def _expand_collapsed_table_line(cls, line: str) -> str:
+        """Split a collapsed single-line GFM table back into proper newline-delimited rows."""
+        sep_match = _TABLE_SEP_RE.search(line)
+        if not sep_match:
+            return line
+
+        sep_raw = sep_match.group(0)
+        if line.strip() == sep_raw:
+            return line
+
+        col_count = sep_raw.count("|") - 1
+        if col_count < 2:
+            return line
+
+        before = line[: sep_match.start()].strip()
+        after = line[sep_match.end() :].strip()
+
+        out_lines: list[str] = []
+        if before:
+            pipe_idx = before.find("|")
+            if pipe_idx > 0:
+                prose_prefix = before[:pipe_idx].strip()
+                header_part = before[pipe_idx:].strip()
+                if prose_prefix:
+                    out_lines.append(prose_prefix)
+                    out_lines.append("")
+                if header_part:
+                    out_lines.append(header_part)
+            else:
+                out_lines.append(before)
+
+        out_lines.append(sep_raw)
+
+        if after:
+            # Rows glued together on one line appear as `| cell | ... | | next_cell | ... |`
+            # Split cleanly using the exact column count from the separator row.
+            tokens = [tok.strip() for tok in after.split("|")]
+            # Drop leading/trailing empty boundary tokens while keeping internal row boundaries
+            cells: list[str] = []
+            idx = 0
+            while idx < len(tokens):
+                tok = tokens[idx]
+                # Empty token between two closing/opening pipes `| |` marks a row boundary
+                if tok == "":
+                    idx += 1
+                    continue
+                cells.append(tok)
+                idx += 1
+
+            # Group collected cells into rows of `col_count`
+            row_start = 0
+            while row_start + col_count <= len(cells):
+                row_cells = cells[row_start : row_start + col_count]
+                out_lines.append("| " + " | ".join(row_cells) + " |")
+                row_start += col_count
+            if row_start < len(cells):
+                trailing = " ".join(cells[row_start:]).strip()
+                if trailing:
+                    out_lines.append("")
+                    out_lines.append(trailing)
+
+        return "\n".join(out_lines)
+
+    @classmethod
+    def _normalize_markdown(cls, text: str) -> str:
+        """Fix collapsed GFM tables and inline headings returned by Nova Pro / Bedrock."""
+        if not text:
+            return text
+        normalized = _INLINE_HEADING_RE.sub(r"\1\n\n\2", text)
+        lines = normalized.split("\n")
+        fixed_lines = [cls._expand_collapsed_table_line(line) for line in lines]
+        return "\n".join(fixed_lines)
+
     def _extract_citations(
         self, answer: str, raw_citations: list[dict[str, Any]]
     ) -> tuple[str, list[dict[str, Any]]]:
         """Deduplicate source PDFs by (document, page), attach S3 Pre-signed URLs, and insert [n] markers."""
+        answer = self._normalize_markdown(answer)
         citations: list[dict[str, Any]] = []
         index_by_source_page: dict[tuple[str, int | None], int] = {}
         presigned_cache: dict[str, tuple[str | None, str | None]] = {}
@@ -245,9 +335,12 @@ class BedrockRagService:
 
             if pos is not None and span_nums:
                 markers = "".join(f"[{n}]" for n in span_nums)
-                # Never insert mid-word or mid-markdown token (**): snap to end of current line/sentence
+                # Never insert mid-word, mid-abbreviation (e.g. "vs."), or mid-markdown token (**):
                 while pos < len(answer) and answer[pos] not in "\n":
                     if answer[pos] in ".!?" and (pos + 1 == len(answer) or answer[pos + 1] in " \n\r*"):
+                        if answer[pos] == "." and _ABBREV_DOT_RE.search(answer[max(0, pos - 12) : pos + 1]):
+                            pos += 1
+                            continue
                         pos += 1
                         break
                     pos += 1
@@ -258,20 +351,56 @@ class BedrockRagService:
                     pos += 1
                 inserts.append((pos, f" {markers}"))
 
-        # Insert markers right-to-left (deduping identical positions and skipping headings)
+        # Insert markers right-to-left (deduping identical positions, skipping headings/separators,
+        # and keeping GFM table markers INSIDE the closing pipe `|`).
         marked_answer = answer
         used_positions: set[int] = set()
         for pos, marker in sorted(inserts, key=lambda x: x[0], reverse=True):
-            if pos in used_positions:
-                continue
             line_start = marked_answer.rfind("\n", 0, pos) + 1
+            line_end = marked_answer.find("\n", pos)
+            if line_end == -1:
+                line_end = len(marked_answer)
+            full_line = marked_answer[line_start:line_end].strip()
             line_text = marked_answer[line_start:pos].strip()
-            # Avoid attaching citations to bare section headers like "Airbnb:" or "Resumo:"
-            if not line_text or (line_text.endswith(":") and len(line_text) < 40):
+
+            # Skip empty lines, Markdown headings, bare section labels, and table separator rows
+            if (
+                not line_text
+                or full_line.startswith("#")
+                or (line_text.endswith(":") and len(line_text) < 40)
+                or self._is_table_separator_line(full_line)
+            ):
                 continue
-            used_positions.add(pos)
+
             safe_pos = max(0, min(pos, len(marked_answer)))
-            marked_answer = marked_answer[:safe_pos] + marker + marked_answer[safe_pos:]
+
+            # If this line is a GFM table row (`| ... |`), NEVER insert after the closing `|`
+            if full_line.startswith("|") and full_line.endswith("|"):
+                next_line_end = marked_answer.find("\n", line_end + 1)
+                next_line = (
+                    marked_answer[line_end + 1 : next_line_end if next_line_end != -1 else len(marked_answer)]
+                    if line_end < len(marked_answer)
+                    else ""
+                )
+                # Skip table header rows (immediately followed by `|---|...|`)
+                if self._is_table_separator_line(next_line):
+                    continue
+                # Place marker cleanly inside the last cell, right before the final `|`
+                closing_pipe = marked_answer.rfind("|", line_start, line_end)
+                if closing_pipe > line_start:
+                    safe_pos = closing_pipe
+                    while safe_pos > line_start and marked_answer[safe_pos - 1] in " \t":
+                        safe_pos -= 1
+                    marker_to_insert = f"{marker} " if marked_answer[safe_pos : closing_pipe] == "" else marker
+                else:
+                    continue
+            else:
+                marker_to_insert = marker
+
+            if safe_pos in used_positions:
+                continue
+            used_positions.add(safe_pos)
+            marked_answer = marked_answer[:safe_pos] + marker_to_insert + marked_answer[safe_pos:]
 
         return marked_answer, citations
 

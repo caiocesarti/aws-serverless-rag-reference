@@ -32,7 +32,7 @@ class ChatRequest:
     dominios: tuple[str, ...] = field(default_factory=tuple)
 
     @classmethod
-    def from_dict(cls, data: Any) -> "ChatRequest":
+    def from_dict(cls, data: Any) -> ChatRequest:
         if not isinstance(data, dict):
             raise ValidationError("Corpo da requisicao deve ser um objeto JSON.")
 
@@ -110,7 +110,7 @@ class FeedbackRequest:
     comment: str | None = None
 
     @classmethod
-    def from_dict(cls, data: Any) -> "FeedbackRequest":
+    def from_dict(cls, data: Any) -> FeedbackRequest:
         if not isinstance(data, dict):
             raise ValidationError("Corpo da requisicao deve ser um objeto JSON.")
 

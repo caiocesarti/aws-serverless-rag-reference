@@ -1,5 +1,6 @@
 # 🏢 ImobiSmart AI — Central de Inteligência Imobiliária (AWS Well-Architected RAG)
 
+[![CI DevSecOps](https://github.com/caiocesarti/aws-serverless-rag-reference/actions/workflows/ci.yml/badge.svg)](https://github.com/caiocesarti/aws-serverless-rag-reference/actions/workflows/ci.yml)
 ![AWS Well-Architected](https://img.shields.io/badge/AWS-Well--Architected-FF9900?style=flat-square&logo=amazonaws&logoColor=white)
 ![Amazon Bedrock](https://img.shields.io/badge/Amazon_Bedrock-Nova_Pro_+_Cohere_Rerank_3.5-01A88D?style=flat-square)
 ![Pinecone Serverless](https://img.shields.io/badge/Pinecone-Serverless_1024d-4F46E5?style=flat-square)
@@ -7,10 +8,11 @@
 ![Python](https://img.shields.io/badge/AWS_Lambda-Python_3.12_ARM64-ED7100?style=flat-square&logo=python&logoColor=white)
 ![DevSecOps](https://img.shields.io/badge/DevSecOps-OIDC_+_Zero_Wildcard_IAM-DD344C?style=flat-square)
 ![License](https://img.shields.io/badge/License-MIT-16A34A?style=flat-square)
+[![Demo em Produção na AWS](https://img.shields.io/badge/YouTube-Demo_em_Produção_na_AWS-FF0000?style=flat-square&logo=youtube&logoColor=white)](https://youtu.be/37uelSDcW_Q)
 
 > **Arquitetura de Referência Serverless RAG (Piloto Funcional)** aplicada a um **estudo de caso do setor imobiliário** (corpus técnico sintético de 3 PDFs) — implementada end-to-end na AWS (`us-east-1`) e Next.js 15 seguindo os **6 pilares do AWS Well-Architected Framework**, com **citações por documento e página (`#page=N`)**, **IAM de menor privilégio**, **DevSecOps** e **FinOps**.
 
-**Navegação rápida:** [Visão Geral](#-1-visão-geral--funcionalidades) · [Arquitetura AWS (PNG)](#-2-arquitetura-aws-well-architected) · [Fluxos & Sequências](#-3-diagramas-de-fluxo-rag-segurança--cicd) · [6 Pilares & FinOps](#-4-aws-well-architected-framework--finops) · [ADRs](#-5-registro-de-decisões-de-arquitetura-adrs) · [Evidências QA (.mp4)](#-6-evidências-de-qa-mp4--screenshots) · [Stack & Monorepo](#-7-stack-verificada--estrutura-do-monorepo) · [Replicar do Zero](#-8-passo-a-passo-para-replicar-o-projeto) · [Como Testar](#-9-guia-de-testes-e-verificação) · [Escopo & Limites](#-10-escopo-do-piloto--evolução-para-escala)
+**Navegação rápida:** [Visão Geral](#-1-visão-geral--funcionalidades) · [Arquitetura AWS (PNG)](#-2-arquitetura-aws-well-architected) · [Fluxos & Sequências](#-3-diagramas-de-fluxo-rag-segurança--cicd) · [6 Pilares & FinOps](#-4-aws-well-architected-framework--finops) · [ADRs](#-5-registro-de-decisões-de-arquitetura-adrs) · [Evidências em Produção (Vídeo)](#-6-evidências-em-produção-na-aws-vídeo--screenshots) · [Stack & Monorepo](#-7-stack-verificada--estrutura-do-monorepo) · [Replicar do Zero](#-8-passo-a-passo-para-replicar-o-projeto) · [Como Testar](#-9-guia-de-testes-e-verificação) · [Escopo & Limites](#-10-escopo-do-piloto--evolução-para-escala)
 
 ---
 
@@ -128,7 +130,7 @@ sequenceDiagram
     Dev->>GH: Push / Pull Request em main
     par Shift-Left Security & Quality (4 jobs paralelos)
         GH->>GH: secret-scan (Gitleaks CLI)
-        GH->>GH: backend-ci (Python 3.12: compileall, ruff, bandit, 11 unittest)
+        GH->>GH: backend-ci (Python 3.12: compileall, ruff, bandit, 12 unittest)
         GH->>GH: frontend-ci (Node 22: npm ci, typecheck, next build, npm audit)
         GH->>GH: iac-security (cfn-lint + Checkov em infra/template.yaml)
     end
@@ -150,7 +152,7 @@ sequenceDiagram
 
 | Pilar Well-Architected | Implementação Concreta no ImobiSmart AI | Referência |
 | :--- | :--- | :--- |
-| **1. Excelência Operacional** | Infraestrutura 100% IaC em CloudFormation (`infra/template.yaml`), deploy automatizado via `deploy.ps1` e GitHub Actions OIDC, logs JSON estruturados sem PII, métricas `@vercel/functions`, governança `.agent/` (regras, workflows `/` e skills) e 11 testes unitários automatizados. | [ADR-004](docs/architecture/adr/ADR-004-devsecops-e-iam-menor-privilegio.md), [ADR-007](docs/architecture/adr/ADR-007-estrategia-containers-e-ci-cd.md) |
+| **1. Excelência Operacional** | Infraestrutura 100% IaC em CloudFormation (`infra/template.yaml`), deploy automatizado via `deploy.ps1` e GitHub Actions OIDC, logs JSON estruturados sem PII, métricas `@vercel/functions`, governança `.agent/` (regras, workflows `/` e skills) e 12 testes unitários automatizados. | [ADR-004](docs/architecture/adr/ADR-004-devsecops-e-iam-menor-privilegio.md), [ADR-007](docs/architecture/adr/ADR-007-estrategia-containers-e-ci-cd.md) |
 | **2. Segurança** | Duas roles IAM segregadas de menor privilégio (trust policy anti-*Confused Deputy* via `aws:SourceAccount`/`aws:SourceArn`), S3 privado (*Block Public Access*, `SSE-S3`, `DenyInsecureTransport`, Pre-signed URL 10 min com trava anti-*path traversal*), BFF sem `x-api-key` no browser, Security Headers restritivos (`CSP`, `HSTS`, `X-Frame-Options: DENY`), zero CORS `*` e Bedrock Guardrail LGPD. | [ADR-003](docs/architecture/adr/ADR-003-cors-restritivo-e-padrao-bff.md), [ADR-004](docs/architecture/adr/ADR-004-devsecops-e-iam-menor-privilegio.md) |
 | **3. Confiabilidade** | Serviços 100% gerenciados e Multi-AZ nativos (API Gateway, Lambda, DynamoDB On-Demand, S3 Versionado, Bedrock), fallback automático de `sessionId` desconhecido no Bedrock, telemetria DynamoDB não-bloqueante e fonte canônica de 3 PDFs sem conflitos. | [ADR-005](docs/architecture/adr/ADR-005-fonte-canonica-kb-3-pdfs.md) |
 | **4. Eficiência de Performance** | Lambda Python 3.12 em **ARM64 (Graviton)** com pacote enxuto de **~13 KB** (sem container pesado), Cohere Rerank 3.5 + Query Decomposition, cache de Pre-signed URL por arquivo e Next.js 15 App Router com imagens self-hosted e modal lazy-loaded (`next/dynamic`). | [ADR-006](docs/architecture/adr/ADR-006-frontend-2026-nextjs-vercel-ai-sdk.md), [ADR-007](docs/architecture/adr/ADR-007-estrategia-containers-e-ci-cd.md) |
@@ -180,21 +182,42 @@ Todas as decisões e trade-offs estão formalmente documentados em [docs/archite
 | [ADR-003](docs/architecture/adr/ADR-003-cors-restritivo-e-padrao-bff.md) | Política de CORS restritiva (zero `*`) e padrão BFF na Vercel | Segurança, Excelência Operacional |
 | [ADR-004](docs/architecture/adr/ADR-004-devsecops-e-iam-menor-privilegio.md) | Práticas DevSecOps *Shift-Left* e IAM com Menor Privilégio Rígido | Segurança, Excelência Operacional |
 | [ADR-005](docs/architecture/adr/ADR-005-fonte-canonica-kb-3-pdfs.md) | Fonte Canônica da Base de Conhecimento (3 PDFs oficiais + sidecars `.metadata.json` escalares) | Confiabilidade, Performance |
-| [ADR-006](docs/architecture/adr/ADR-006-frontend-2026-nextjs-vercel-ai-sdk.md) | Substituição do Streamlit por Next.js 15 + React 19 + Tailwind CSS v4 | Performance, Segurança, FinOps |
+| [ADR-006](docs/architecture/adr/ADR-006-frontend-2026-nextjs-vercel-ai-sdk.md) | Substituição do Streamlit por Next.js 15 App Router + BFF Serverless + Tailwind CSS v4 | Performance, Segurança, FinOps |
 | [ADR-007](docs/architecture/adr/ADR-007-estrategia-containers-e-ci-cd.md) | Estratégia Serverless-First (sem Docker) e CI/CD DevSecOps com GitHub OIDC | Excelência Operacional, Segurança, FinOps |
 
 ---
 
-## 🎬 6. Evidências de QA (`.mp4` & Screenshots)
+## 🎬 6. Evidências em Produção na AWS (Vídeo & Screenshots)
 
-Todas as gravações em vídeo (`.mp4`), capturas de tela e evidências da infraestrutura na AWS estão organizadas em **[docs/evidence/README.md](docs/evidence/README.md)**:
+### 🎥 Demonstração Completa em Produção na AWS (Teste Manual End-to-End)
 
-| Preview Visual | Fluxo Validado (Chrome + AWS `us-east-1`) | Gravação `.mp4` |
-| :---: | :--- | :--- |
-| ![Landing Dark Mode](docs/evidence/screenshots/01-landing-portfolio-dark.png) | **Portfólio Fotográfico & Fichas Técnicas:** 3 empreendimentos, regras construtivas, badges SFH/SFI/Airbnb | [demo-01a-portfolio-empreendimentos.mp4](docs/evidence/demo-01a-portfolio-empreendimentos.mp4) |
-| ![Simulador SAC vs Price](docs/evidence/screenshots/03-simulador-sac-price-sfh-idade.png) | **Simulador SAC vs. Price:** troca `SFI ↔ SFH`, entrada `20% → 30%`, regra etária `80a6m` (60a → 246m) | [demo-01b-simulador-sac-price.mp4](docs/evidence/demo-01b-simulador-sac-price.mp4) |
-| ![Filtros e Light Mode](docs/evidence/screenshots/04-filtros-perfil-light.png) | **Filtros Pinecone, Persona & Tema:** `Corretor → Comprador`, `2 filtros ativos`, Dark ↔ Light Mode | [demo-01c-filtros-perfil-darkmode.mp4](docs/evidence/demo-01c-filtros-perfil-darkmode.mp4) |
-| ![PDF Drawer #page=1](docs/evidence/screenshots/06-pdf-drawer-presigned-page.png) | **Chat RAG + Citações `[1 · p.1]` + PDF `#page=1`:** resposta real Bedrock + PDF inline via S3 Pre-signed URL | [demo-rag-citacoes-pagina-pdf.mp4](docs/evidence/demo-rag-citacoes-pagina-pdf.mp4) |
+Gravação real executada manualmente contra o ambiente ativo na **AWS (`us-east-1`)** — validando de ponta a ponta o **Next.js 15 BFF → Amazon API Gateway → AWS Lambda (Python 3.12 ARM64) → Amazon Bedrock (Nova Pro + Knowledge Base + Cohere Rerank 3.5 + Guardrail LGPD) → Pinecone Serverless → Amazon S3 Privado (Pre-signed URL `#page=N`) → Amazon DynamoDB**:
+
+[![Assistir Demonstração Completa em Produção na AWS](https://img.shields.io/badge/YouTube-Assistir_Demonstração_em_Produção_na_AWS-FF0000?style=for-the-badge&logo=youtube&logoColor=white)](https://youtu.be/37uelSDcW_Q)
+
+[![Demonstração Completa em Produção na AWS — ImobiSmart AI (clique para assistir no YouTube)](docs/evidence/screenshots/01-landing-portfolio-dark.png)](https://youtu.be/37uelSDcW_Q)
+
+> **▶ Clique na imagem ou no botão acima para assistir no YouTube:** [https://youtu.be/37uelSDcW_Q](https://youtu.be/37uelSDcW_Q) *(teste manual completo em produção na AWS, incluindo navegação de portfólio, Simulador SAC vs. Price com card determinístico no chat, consultas RAG multi-documento com citações exatas por página `[1 · p.N]`, abertura do PDF privado via S3 Pre-signed URL e proteção Guardrail)*.
+
+### 📊 Métricas Reais Observadas em Produção (AWS `us-east-1`)
+
+| Indicador | Valor Verificado | Observação |
+| :--- | :---: | :--- |
+| **Latência End-to-End RAG** | **`~5,5s – 9,9s`** | Query Decomposition + Pinecone Top 12 + Cohere Rerank 3.5 Top 6 + Nova Pro + Guardrail + S3 Pre-sign |
+| **Índice Vetorial (Pinecone Serverless)** | **`81 vetores` · `0,64 MB / 2 GB`** | `1024d` (`cosine`), AWS `us-east-1`, Starter Free Tier (`US$ 0,00/mês`) |
+| **Pacote AWS Lambda (`arm64`)** | **`~15 KB Zip`** | Zero layers / zero container; `0` alertas Bandit e Ruff |
+| **Cobertura de Testes (Custo Zero AWS)** | **`12` Backend + `7` BFF/Demo Frontend** | `unittest` (Python 3.12) + `node:test` (Node 22) + TypeScript `strict` (`0` erros) |
+
+### 📸 Capturas de Tela & Evidências da Infraestrutura
+
+Todas as capturas de tela do app e os prints sanitizados da console AWS/Pinecone estão documentados em **[docs/evidence/README.md](docs/evidence/README.md)**:
+
+| Preview Visual | Fluxo Validado (Chrome + AWS `us-east-1`) | Status |
+| :---: | :--- | :---: |
+| ![Landing Dark Mode](docs/evidence/screenshots/01-landing-portfolio-dark.png) | **Portfólio Fotográfico & Fichas Técnicas:** 3 empreendimentos, regras construtivas, badges SFH/SFI/Airbnb | **PASS** |
+| ![Simulador SAC vs Price](docs/evidence/screenshots/03-simulador-sac-price-sfh-idade.png) | **Simulador SAC vs. Price:** troca `SFI ↔ SFH`, entrada `20% → 30%`, regra etária `80a6m` (60a → 246m) e card determinístico no chat | **PASS** |
+| ![Filtros e Light Mode](docs/evidence/screenshots/04-filtros-perfil-light.png) | **Filtros Pinecone, Persona & Tema:** `Corretor → Comprador`, `2 filtros ativos`, Dark ↔ Light Mode | **PASS** |
+| ![Chat RAG Citações](docs/evidence/screenshots/05-chat-rag-citacoes-pagina.png) | **Chat RAG + Citações + PDF `#page=N`:** resposta real Bedrock + cards de fontes + abertura inline via S3 Pre-signed URL ([ver em vídeo](https://youtu.be/37uelSDcW_Q)) | **PASS** |
 
 **Infraestrutura provisionada (prints sanitizados em [docs/evidence/README.md](docs/evidence/README.md)):**
 [AWS Lambda](docs/evidence/screenshots/07-aws-lambda-overview.png) · [API Gateway REST](docs/evidence/screenshots/08-aws-api-gateway.png) · [S3 Privado (`artifacts/` + `documents/`)](docs/evidence/screenshots/09-aws-s3-private-bucket.png) · [Bedrock Knowledge Base](docs/evidence/screenshots/10-aws-bedrock-kb.png) · [Pinecone Serverless (`81` vetores)](docs/evidence/screenshots/11-pinecone-serverless-index.png) · [DynamoDB (`On-demand`)](docs/evidence/screenshots/12-aws-dynamodb-sessions.png)
@@ -206,7 +229,7 @@ Todas as gravações em vídeo (`.mp4`), capturas de tela e evidências da infra
 | Camada | Tecnologias & Versões Exatas |
 | :--- | :--- |
 | **Frontend & BFF (`apps/web/`)** | Next.js `15.5.29` (App Router) · React `19.3.1` · TypeScript `5.9.3` (`strict`) · Tailwind CSS `4.3.5` · Zod `3.25.76` · `@vercel/functions 3.11.3` · Node.js `22.x` |
-| **Backend Serverless (`backend/`)** | AWS Lambda `Python 3.12` (`arm64` Graviton, `512 MB`, `~13 KB Zip`) · `boto3` · `unittest` (`11/11` testes) |
+| **Backend Serverless (`backend/`)** | AWS Lambda `Python 3.12` (`arm64` Graviton, `512 MB`, `~15 KB Zip`) · `boto3` · `unittest` (`12/12` testes) |
 | **IA & Vector Store** | Amazon Bedrock (`us.amazon.nova-pro-v1:0`, `amazon.titan-embed-text-v2:0`, `cohere.rerank-v3-5:0`, Guardrail Standard `us.guardrail.v1:0`) · Pinecone Serverless (`1024d`, `cosine`) |
 | **Dados, IaC & DevSecOps** | Amazon S3 privado · Amazon DynamoDB (On-Demand + TTL 30d) · API Gateway REST (Usage Plan) · AWS Secrets Manager · CloudFormation · GitHub Actions (Gitleaks, Ruff, Bandit, cfn-lint, Checkov, OIDC) |
 
@@ -224,7 +247,7 @@ aws-serverless-rag-reference/
 │   ├── src/handlers/             # Lambda HTTP Router (/v1/health, /v1/chat, /v1/feedback)
 │   ├── src/services/             # bedrock_rag.py (page extraction + dedupe), s3_presigner.py, session_store.py
 │   ├── src/schemas/              # Validação estrita de contratos (prompt ≤ 1.000 chars)
-│   └── tests/                    # 11 testes unitários automatizados (unittest, sem chamadas externas)
+│   └── tests/                    # 12 testes unitários automatizados (unittest, sem chamadas externas)
 ├── infra/                        # Infrastructure as Code (template.yaml + deploy.ps1)
 ├── knowledge-base/               # 3 PDFs oficiais (IMOBI-EMP-001, COND-002, FIN-003) + .metadata.json + sync_kb.ps1
 └── docs/
@@ -232,7 +255,7 @@ aws-serverless-rag-reference/
     │   ├── adr/                  # 7 ADRs formais (ADR-001 a ADR-007)
     │   └── diagrams/             # Diagramas PNG Retina (Well-Architected + Fluxos)
     ├── evaluation/               # Golden Dataset (13 casos) + run_eval.py (env-driven)
-    └── evidence/                 # Evidências QA (.mp4, screenshots e prints de infra AWS)
+    └── evidence/                 # Evidências QA (vídeo em produção no YouTube, screenshots e prints AWS)
 ```
 
 ---
@@ -312,7 +335,7 @@ $env:AWS_PROFILE = "imobismart"
 5. *(FinOps)* Configure um alerta no **AWS Budgets** (ex.: US\$ 5,00/mês).
 
 #### Passo 4 — Deploy da Infraestrutura Serverless (CloudFormation)
-Execute o script oficial [infra/deploy.ps1](infra/deploy.ps1), que roda os **11 testes unitários**, empacota `backend/src`, envia o `.zip` para `artifacts/`, valida `infra/template.yaml` e faz o deploy da stack:
+Execute o script oficial [infra/deploy.ps1](infra/deploy.ps1), que roda os **12 testes unitários**, empacota `backend/src`, envia o `.zip` para `artifacts/`, valida `infra/template.yaml` e faz o deploy da stack:
 
 ```powershell
 .\infra\deploy.ps1 `
@@ -349,8 +372,8 @@ Para executar [.github/workflows/deploy-aws.yml](.github/workflows/deploy-aws.ym
 
 ## 🧪 9. Guia de Testes e Verificação
 
-### 9.1 Testes Unitários do Backend (11/11 PASS · Custo Zero AWS)
-Cobre validação de schemas, trava anti-*path traversal* no S3 Pre-signer, filtros Pinecone, CORS restritivo, preservação de palavras acentuadas em citações, extração de página exata (`pagina`/`arquivo`) e cache de Pre-signed URL:
+### 9.1 Testes Unitários do Backend (12/12 PASS · Custo Zero AWS)
+Cobre validação de schemas, trava anti-*path traversal* no S3 Pre-signer, filtros Pinecone, CORS restritivo, preservação de palavras acentuadas em citações, conversão 0-based → 1-based de página (`pagina`/`arquivo`), tabelas Markdown GFM com citações seguras e cache de Pre-signed URL:
 
 ```powershell
 # Criar virtualenv (primeira vez) e instalar boto3 para mocks locais
@@ -362,11 +385,12 @@ python -m venv venv
 .\venv\Scripts\python.exe -m unittest discover -s backend/tests -v
 ```
 
-### 9.2 Type-check, Build de Produção & Auditoria de Dependências (Frontend)
+### 9.2 Type-check, Testes BFF/Demo, Build de Produção & Auditoria (Frontend)
 ```powershell
 npm --prefix apps/web run typecheck
+npm --prefix apps/web test
 npm --prefix apps/web run build
-npm --prefix apps/web audit --audit-level=high
+npm --prefix apps/web audit --audit-level=critical
 ```
 
 ### 9.3 Validação de IaC (CloudFormation)
@@ -426,5 +450,5 @@ Para manter o projeto transparente e coerente com o teto de custo (FinOps) de um
 
 ## 👤 11. Autor & Licença
 
-- **Autor:** Caio Cesar
-- **Licença:** MIT — consulte [LICENSE](LICENSE).
+- **Autor:** Caio Cesar — [caiocesar.tec.br](https://caiocesar.tec.br/) · [GitHub (@caiocesarti)](https://github.com/caiocesarti)
+- **Licença:** MIT — consulte [LICENSE](LICENSE) *(uso, modificação e redistribuição permitidos mantendo o aviso de copyright e atribuição ao autor)*.

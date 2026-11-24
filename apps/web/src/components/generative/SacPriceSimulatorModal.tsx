@@ -4,12 +4,13 @@ import { useMemo, useState } from "react";
 import { AlertCircle, Calculator, CheckCircle2, Sparkles, X } from "lucide-react";
 
 import { ALL_TIPOLOGIAS, formatBRL, type TipologiaSpec } from "@/lib/portfolio";
+import type { SimulationSummary } from "@/lib/types";
 
 interface SacPriceSimulatorModalProps {
   open: boolean;
   initialTipologia: TipologiaSpec | null;
   onClose: () => void;
-  onAskAi: (prompt: string) => void;
+  onAskAi: (prompt: string, summary?: SimulationSummary) => void;
 }
 
 const SFH_CEILING = 1_500_000;
@@ -102,37 +103,58 @@ export function SacPriceSimulatorModal({
   };
 
   const handleAskConsultant = () => {
-    const label = selectedTipologia
+    const propertyLabel = selectedTipologia
       ? `${selectedTipologia.empreendimentoNome} — ${selectedTipologia.nome}`
-      : `imóvel de ${formatBRL(propertyValue)}`;
+      : `Imóvel Residencial`;
+    const summary: SimulationSummary = {
+      propertyLabel,
+      propertyValue,
+      downPaymentPct,
+      downPayment: calc.downPayment,
+      financed: calc.financed,
+      ltv: calc.ltv,
+      annualRatePct,
+      months: effectiveMonths,
+      buyerAge,
+      agePlusTermYears: Number((buyerAge + effectiveMonths / 12).toFixed(1)),
+      isSfh: calc.isSfh,
+      itbiEstimate: calc.itbiEstimate,
+      sacFirst: calc.sacFirst,
+      sacLast: calc.sacLast,
+      sacMinIncome: calc.sacMinIncome,
+      priceInstallment: calc.priceInstallment,
+      priceMinIncome: calc.priceMinIncome,
+      savingsSac: calc.savingsSac,
+      priceExceedsLtvWarning: calc.priceExceedsLtvWarning,
+    };
+    const promptTarget = selectedTipologia
+      ? `${propertyLabel} (${formatBRL(selectedTipologia.precoBase)})`
+      : `${propertyLabel} (${formatBRL(propertyValue)})`;
     onAskAi(
-      `Para um cliente de ${buyerAge} anos interessado no ${label} (${formatBRL(
-        propertyValue
-      )}), com entrada de ${downPaymentPct}% (${formatBRL(
-        calc.downPayment
-      )}) e financiamento em ${effectiveMonths} meses, quais linhas de crédito do Manual IMOBI-FIN-003 se enquadram (SFH/SFI/MCMV/Pró-Cotista), pode usar FGTS e quais os custos de ITBI e registro em Salvador?`
+      `Para o ${promptTarget}, quais linhas de crédito do Manual IMOBI-FIN-003 se enquadram (SFH/SFI/MCMV/Pró-Cotista), quais as regras de SAC vs. Tabela Price (LTV máximo, comprometimento de renda de 30% e regra de idade máxima), como funciona o uso do FGTS e quais os custos de ITBI e registro em Salvador?`,
+      summary
     );
     onClose();
   };
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/65 p-4 backdrop-blur-xs"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/65 p-3 backdrop-blur-xs"
       role="dialog"
       aria-modal="true"
       aria-labelledby="simulator-title"
     >
-      <div className="flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-[#0D1320]">
+      <div className="flex max-h-[94vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-[#0D1320]">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4 dark:border-slate-800">
+        <div className="flex items-center justify-between border-b border-slate-200 px-5 py-3 dark:border-slate-800">
           <div className="flex items-center gap-2.5">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-sky-600 text-white">
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-sky-600 text-white">
               <Calculator className="h-4 w-4" />
             </div>
             <div>
               <h2
                 id="simulator-title"
-                className="text-base font-bold text-slate-900 dark:text-white"
+                className="text-sm font-bold text-slate-900 sm:text-base dark:text-white"
               >
                 Simulador Comparativo SAC vs. Tabela Price
               </h2>
@@ -152,12 +174,12 @@ export function SacPriceSimulatorModal({
         </div>
 
         {/* Body */}
-        <div className="flex-1 space-y-5 overflow-y-auto p-6">
+        <div className="flex-1 space-y-3 overflow-y-auto px-5 py-3.5">
           {/* Tipologia preset */}
           <div>
             <label
               htmlFor="sim-tipologia"
-              className="mb-1.5 block text-xs font-semibold text-slate-700 dark:text-slate-300"
+              className="mb-1 block text-xs font-semibold text-slate-700 dark:text-slate-300"
             >
               Unidade de Referência do Portfólio ImobiSmart
             </label>
@@ -165,7 +187,7 @@ export function SacPriceSimulatorModal({
               id="sim-tipologia"
               value={selectedId}
               onChange={(e) => handleTipologiaChange(e.target.value)}
-              className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 focus:border-sky-500 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+              className="w-full rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-xs text-slate-900 focus:border-sky-500 focus:outline-none sm:text-sm dark:border-slate-700 dark:bg-slate-900 dark:text-white"
             >
               {ALL_TIPOLOGIAS.map((t) => (
                 <option key={t.id} value={t.id}>
@@ -177,8 +199,8 @@ export function SacPriceSimulatorModal({
           </div>
 
           {/* Sliders grid */}
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="rounded-xl border border-slate-200 p-3.5 dark:border-slate-800">
+          <div className="grid gap-2.5 sm:grid-cols-2">
+            <div className="rounded-xl border border-slate-200 p-2.5 dark:border-slate-800">
               <div className="flex items-center justify-between text-xs">
                 <span className="font-semibold text-slate-700 dark:text-slate-300">
                   Entrada (%)
@@ -194,14 +216,14 @@ export function SacPriceSimulatorModal({
                 step={5}
                 value={downPaymentPct}
                 onChange={(e) => setDownPaymentPct(Number(e.target.value))}
-                className="mt-2 w-full accent-sky-600"
+                className="mt-1.5 w-full accent-sky-600"
               />
-              <p className="mt-1 font-mono text-[11px] text-slate-500 dark:text-slate-400">
+              <p className="mt-0.5 font-mono text-[11px] text-slate-500 dark:text-slate-400">
                 Financiado (LTV {calc.ltv.toFixed(0)}%): {formatBRL(calc.financed)}
               </p>
             </div>
 
-            <div className="rounded-xl border border-slate-200 p-3.5 dark:border-slate-800">
+            <div className="rounded-xl border border-slate-200 p-2.5 dark:border-slate-800">
               <div className="flex items-center justify-between text-xs">
                 <span className="font-semibold text-slate-700 dark:text-slate-300">
                   Taxa Efetiva (a.a. + TR)
@@ -217,14 +239,14 @@ export function SacPriceSimulatorModal({
                 step={0.1}
                 value={annualRatePct}
                 onChange={(e) => setAnnualRatePct(Number(e.target.value))}
-                className="mt-2 w-full accent-sky-600"
+                className="mt-1.5 w-full accent-sky-600"
               />
-              <p className="mt-1 font-mono text-[11px] text-slate-500 dark:text-slate-400">
+              <p className="mt-0.5 font-mono text-[11px] text-slate-500 dark:text-slate-400">
                 Ref.: Pró-Cotista 8,66% · SBPE TR 10,49–11,49%
               </p>
             </div>
 
-            <div className="rounded-xl border border-slate-200 p-3.5 dark:border-slate-800">
+            <div className="rounded-xl border border-slate-200 p-2.5 dark:border-slate-800">
               <div className="flex items-center justify-between text-xs">
                 <span className="font-semibold text-slate-700 dark:text-slate-300">
                   Prazo (meses)
@@ -240,14 +262,14 @@ export function SacPriceSimulatorModal({
                 step={12}
                 value={effectiveMonths}
                 onChange={(e) => setMonths(Number(e.target.value))}
-                className="mt-2 w-full accent-sky-600"
+                className="mt-1.5 w-full accent-sky-600"
               />
-              <p className="mt-1 font-mono text-[11px] text-slate-500 dark:text-slate-400">
+              <p className="mt-0.5 font-mono text-[11px] text-slate-500 dark:text-slate-400">
                 Teto pela idade ({buyerAge}a): {maxAllowedMonthsByAge} meses
               </p>
             </div>
 
-            <div className="rounded-xl border border-slate-200 p-3.5 dark:border-slate-800">
+            <div className="rounded-xl border border-slate-200 p-2.5 dark:border-slate-800">
               <div className="flex items-center justify-between text-xs">
                 <span className="font-semibold text-slate-700 dark:text-slate-300">
                   Idade do Proponente Mais Velho
@@ -263,18 +285,18 @@ export function SacPriceSimulatorModal({
                 step={1}
                 value={buyerAge}
                 onChange={(e) => setBuyerAge(Number(e.target.value))}
-                className="mt-2 w-full accent-sky-600"
+                className="mt-1.5 w-full accent-sky-600"
               />
-              <p className="mt-1 font-mono text-[11px] text-slate-500 dark:text-slate-400">
+              <p className="mt-0.5 font-mono text-[11px] text-slate-500 dark:text-slate-400">
                 Regra bancária: idade + prazo ≤ 80 anos e 6 meses
               </p>
             </div>
           </div>
 
           {/* Enquadramento Strip */}
-          <div className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs dark:border-slate-800 dark:bg-slate-900">
+          <div className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-[11px] dark:border-slate-800 dark:bg-slate-900">
             <span
-              className={`inline-flex items-center gap-1 rounded-lg px-2 py-1 font-semibold ${
+              className={`inline-flex items-center gap-1 rounded-lg px-2 py-0.5 font-semibold ${
                 calc.isSfh
                   ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
                   : "bg-slate-200 text-slate-800 dark:bg-slate-800 dark:text-slate-200"
@@ -288,7 +310,7 @@ export function SacPriceSimulatorModal({
               {calc.isSfh ? "Enquadrado no SFH (Aceita FGTS)" : "Enquadrado no SFI (Sem FGTS)"}
             </span>
             {calc.isSfh ? (
-              <span className="rounded-lg bg-sky-100 px-2 py-1 font-medium text-sky-800 dark:bg-sky-950 dark:text-sky-300">
+              <span className="rounded-lg bg-sky-100 px-2 py-0.5 font-medium text-sky-800 dark:bg-sky-950 dark:text-sky-300">
                 50% desc. RGI (1º imóvel · Lei 6.015/73)
               </span>
             ) : null}
@@ -298,17 +320,17 @@ export function SacPriceSimulatorModal({
           </div>
 
           {/* Comparison Cards */}
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="rounded-2xl border-2 border-sky-500/70 bg-sky-50/40 p-4 dark:border-sky-500/40 dark:bg-sky-950/20">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="rounded-xl border-2 border-sky-500/70 bg-sky-50/40 p-3 dark:border-sky-500/40 dark:bg-sky-950/20">
               <div className="flex items-center justify-between">
-                <span className="text-sm font-bold text-slate-900 dark:text-white">
+                <span className="text-xs font-bold text-slate-900 sm:text-sm dark:text-white">
                   Sistema SAC
                 </span>
                 <span className="rounded-full bg-sky-600 px-2 py-0.5 text-[10px] font-bold text-white">
                   Menor Juros Total
                 </span>
               </div>
-              <dl className="mt-3 space-y-2 text-xs">
+              <dl className="mt-2 space-y-1 text-[11px]">
                 <div className="flex justify-between">
                   <dt className="text-slate-600 dark:text-slate-400">1ª Prestação Est.</dt>
                   <dd className="font-mono font-bold text-slate-900 dark:text-white">
@@ -327,7 +349,7 @@ export function SacPriceSimulatorModal({
                     {formatBRL(calc.sacMinIncome)}/mês
                   </dd>
                 </div>
-                <div className="flex justify-between border-t border-sky-200/70 pt-2 dark:border-sky-800/60">
+                <div className="flex justify-between border-t border-sky-200/70 pt-1.5 dark:border-sky-800/60">
                   <dt className="text-slate-600 dark:text-slate-400">Total Aproximado</dt>
                   <dd className="font-mono font-bold text-sky-800 dark:text-sky-300">
                     {formatBRL(calc.sacTotal)}
@@ -336,16 +358,16 @@ export function SacPriceSimulatorModal({
               </dl>
             </div>
 
-            <div className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900/60">
+            <div className="rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900/60">
               <div className="flex items-center justify-between">
-                <span className="text-sm font-bold text-slate-900 dark:text-white">
+                <span className="text-xs font-bold text-slate-900 sm:text-sm dark:text-white">
                   Tabela Price
                 </span>
                 <span className="rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-semibold text-slate-700 dark:bg-slate-800 dark:text-slate-300">
                   Parcela Fixa
                 </span>
               </div>
-              <dl className="mt-3 space-y-2 text-xs">
+              <dl className="mt-2 space-y-1 text-[11px]">
                 <div className="flex justify-between">
                   <dt className="text-slate-600 dark:text-slate-400">1ª Prestação Est.</dt>
                   <dd className="font-mono font-bold text-slate-900 dark:text-white">
@@ -364,7 +386,7 @@ export function SacPriceSimulatorModal({
                     {formatBRL(calc.priceMinIncome)}/mês
                   </dd>
                 </div>
-                <div className="flex justify-between border-t border-slate-200 pt-2 dark:border-slate-800">
+                <div className="flex justify-between border-t border-slate-200 pt-1.5 dark:border-slate-800">
                   <dt className="text-slate-600 dark:text-slate-400">Total Aproximado</dt>
                   <dd className="font-mono font-bold text-slate-900 dark:text-white">
                     {formatBRL(calc.priceTotal)}
@@ -372,7 +394,7 @@ export function SacPriceSimulatorModal({
                 </div>
               </dl>
               {calc.priceExceedsLtvWarning ? (
-                <p className="mt-2 text-[11px] font-medium text-amber-700 dark:text-amber-400">
+                <p className="mt-1.5 text-[10px] font-medium text-amber-700 dark:text-amber-400">
                   ⚠️ Atenção: bancos comerciais costumam limitar Tabela Price SBPE a 70% de LTV.
                 </p>
               ) : null}
@@ -390,7 +412,7 @@ export function SacPriceSimulatorModal({
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-end gap-2 border-t border-slate-200 bg-slate-50 px-6 py-3.5 dark:border-slate-800 dark:bg-slate-950/60">
+        <div className="flex items-center justify-end gap-2 border-t border-slate-200 bg-slate-50 px-5 py-2.5 dark:border-slate-800 dark:bg-slate-950/60">
           <button
             type="button"
             onClick={onClose}

@@ -34,6 +34,10 @@ samconfig.toml.bak
 *.pem
 *.key
 
+# Ephemeral Evaluation Outputs & Local Video Recordings (hosted on YouTube)
+docs/evaluation/last_eval_report.json
+docs/evidence/*.mp4
+
 # OS & IDE
 .DS_Store
 Thumbs.db

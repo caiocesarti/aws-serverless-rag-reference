@@ -13,12 +13,12 @@ BACKEND_ROOT = Path(__file__).resolve().parents[1]
 if str(BACKEND_ROOT) not in sys.path:
     sys.path.insert(0, str(BACKEND_ROOT))
 
-from src.config import Settings  # noqa: E402
-from src.handlers.chat import lambda_handler  # noqa: E402
-from src.schemas.chat import ChatRequest, FeedbackRequest, ValidationError  # noqa: E402
-from src.services.bedrock_rag import BedrockRagService  # noqa: E402
-from src.services.s3_presigner import S3Presigner  # noqa: E402
-from src.services.session_store import SessionStore  # noqa: E402
+from src.config import Settings
+from src.handlers.chat import lambda_handler
+from src.schemas.chat import ChatRequest, FeedbackRequest, ValidationError
+from src.services.bedrock_rag import BedrockRagService
+from src.services.s3_presigner import S3Presigner
+from src.services.session_store import SessionStore
 
 
 def _make_settings() -> Settings:
@@ -164,7 +164,7 @@ class TestRagAndHandler(unittest.TestCase):
                                 "dominio_kb": "credito",
                                 "versao": "4.0",
                                 "vigencia": "2026-11-01",
-                                "x-amz-bedrock-kb-document-page-number": 2.0,
+                                "x-amz-bedrock-kb-document-page-number": 1.0,
                             },
                         }
                     ],
@@ -232,7 +232,7 @@ class TestRagAndHandler(unittest.TestCase):
                         "location": {"s3Location": {"uri": pdf_uri}},
                         "metadata": {
                             "codigo_doc": "IMOBI-EMP-001",
-                            "x-amz-bedrock-kb-document-page-number": 1.0,
+                            "x-amz-bedrock-kb-document-page-number": 0.0,
                         },
                     }
                 ],
@@ -247,7 +247,7 @@ class TestRagAndHandler(unittest.TestCase):
                         "location": {"s3Location": {"uri": pdf_uri}},
                         "metadata": {
                             "codigo_doc": "IMOBI-EMP-001",
-                            "x-amz-bedrock-kb-document-page-number": 4.0,
+                            "x-amz-bedrock-kb-document-page-number": 3.0,
                         },
                     }
                 ],
@@ -262,7 +262,7 @@ class TestRagAndHandler(unittest.TestCase):
                         "location": {"s3Location": {"uri": pdf_uri}},
                         "metadata": {
                             "codigo_doc": "IMOBI-EMP-001",
-                            "x-amz-bedrock-kb-document-page-number": 1.0,
+                            "x-amz-bedrock-kb-document-page-number": 0.0,
                         },
                     }
                 ],
@@ -279,8 +279,19 @@ class TestRagAndHandler(unittest.TestCase):
         self.assertIn("página 4. [2]", marked)
         # Same PDF URI should be presigned only once
         mock_s3.generate_presigned_url.assert_called_once()
-        # Invalid or missing page values must safely yield None
+        # 0-based Bedrock metadata maps 0.0 -> 1, 2.0 -> 3; negative/invalid yields None
+        self.assertEqual(
+            BedrockRagService._parse_page_number({"x-amz-bedrock-kb-document-page-number": 0.0}),
+            1,
+        )
+        self.assertEqual(
+            BedrockRagService._parse_page_number({"x-amz-bedrock-kb-document-page-number": 2.0}),
+            3,
+        )
         self.assertIsNone(BedrockRagService._parse_page_number({}))
+        self.assertIsNone(
+            BedrockRagService._parse_page_number({"x-amz-bedrock-kb-document-page-number": -1.0})
+        )
         self.assertIsNone(
             BedrockRagService._parse_page_number(
                 {"x-amz-bedrock-kb-document-page-number": True}
@@ -328,6 +339,73 @@ class TestRagAndHandler(unittest.TestCase):
         self.assertIn("Resumo:", marked)
         self.assertNotIn("R [1] esumo", marked)
         self.assertIn("proibida. [1]", marked)
+
+    def test_expands_collapsed_gfm_table_and_keeps_citations_inside_pipes(self) -> None:
+        settings = _make_settings()
+        mock_s3 = MagicMock()
+        mock_s3.generate_presigned_url.return_value = "https://s3.presigned/doc.pdf"
+        presigner = S3Presigner(
+            bucket_name=settings.docs_bucket_name,
+            allowed_prefix=settings.docs_prefix,
+            s3_client=mock_s3,
+        )
+        rag = BedrockRagService(settings=settings, presigner=presigner, bedrock_client=MagicMock())
+        collapsed = (
+            "Comparativo oficial:\n"
+            "| Empreendimento | Preço/m² | Crédito | |---|---|---| "
+            "| Horizonte Barra | R$ 16.800/m² | SFI | "
+            "| Parque das Palmeiras | R$ 9.450/m² | SFH |"
+        )
+        raw_citations = [
+            {
+                "generatedResponsePart": {
+                    "textResponsePart": {"text": "| Empreendimento | Preço/m² | Crédito |"}
+                },
+                "retrievedReferences": [
+                    {
+                        "content": {"text": "Header"},
+                        "location": {
+                            "s3Location": {
+                                "uri": "s3://imobismart-kb-docs-111122223333/documents/catalogo-tecnico-empreendimentos-imobi-emp-001.pdf"
+                            }
+                        },
+                        "metadata": {
+                            "codigo_doc": "IMOBI-EMP-001",
+                            "x-amz-bedrock-kb-document-page-number": 0.0,
+                        },
+                    }
+                ],
+            },
+            {
+                "generatedResponsePart": {
+                    "textResponsePart": {"text": "| Horizonte Barra | R$ 16.800/m² | SFI |"}
+                },
+                "retrievedReferences": [
+                    {
+                        "content": {"text": "Horizonte Barra SFI"},
+                        "location": {
+                            "s3Location": {
+                                "uri": "s3://imobismart-kb-docs-111122223333/documents/manual-credito-financiamento-imobi-fin-003.pdf"
+                            }
+                        },
+                        "metadata": {
+                            "codigo_doc": "IMOBI-FIN-003",
+                            "x-amz-bedrock-kb-document-page-number": 1.0,
+                        },
+                    }
+                ],
+            },
+        ]
+        marked, citations = rag._extract_citations(collapsed, raw_citations)
+        lines = [line for line in marked.splitlines() if line.strip().startswith("|")]
+        self.assertEqual(len(lines), 4)
+        self.assertEqual(lines[0], "| Empreendimento | Preço/m² | Crédito |")
+        self.assertEqual(lines[1], "|---|---|---|")
+        self.assertTrue(lines[2].endswith("[2] |"))
+        self.assertNotIn("| [1]", marked)
+        self.assertNotIn("| [2]", marked)
+        self.assertEqual(citations[0]["pagina"], 1)
+        self.assertEqual(citations[1]["pagina"], 2)
 
 
 if __name__ == "__main__":

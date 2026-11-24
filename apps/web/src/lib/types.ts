@@ -22,12 +22,35 @@ export interface Citation {
   s3_key: string | null;
 }
 
+export interface SimulationSummary {
+  propertyLabel: string;
+  propertyValue: number;
+  downPaymentPct: number;
+  downPayment: number;
+  financed: number;
+  ltv: number;
+  annualRatePct: number;
+  months: number;
+  buyerAge: number;
+  agePlusTermYears: number;
+  isSfh: boolean;
+  itbiEstimate: number;
+  sacFirst: number;
+  sacLast: number;
+  sacMinIncome: number;
+  priceInstallment: number;
+  priceMinIncome: number;
+  savingsSac: number;
+  priceExceedsLtvWarning: boolean;
+}
+
 export interface ChatMessage {
   id: string;
   role: "user" | "assistant";
   content: string;
   timestamp: string;
   citations?: Citation[];
+  simulationSummary?: SimulationSummary;
   guardrailAction?: string;
   latencyMs?: number;
   feedback?: "up" | "down" | null;

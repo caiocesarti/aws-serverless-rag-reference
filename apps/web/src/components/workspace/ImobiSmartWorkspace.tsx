@@ -33,6 +33,7 @@ import type {
   EmpreendimentoId,
   HealthResponse,
   Persona,
+  SimulationSummary,
 } from "@/lib/types";
 
 const SacPriceSimulatorModal = dynamic(
@@ -127,7 +128,7 @@ export function ImobiSmartWorkspace() {
   }, []);
 
   const sendPrompt = useCallback(
-    async (rawText: string) => {
+    async (rawText: string, simulationSummary?: SimulationSummary) => {
       const trimmed = rawText.trim();
       if (!trimmed || loading) return;
 
@@ -175,6 +176,7 @@ export function ImobiSmartWorkspace() {
           content: data.answer || "Não foi possível gerar uma resposta.",
           timestamp: formatNow(),
           citations: Array.isArray(data.citations) ? data.citations : [],
+          simulationSummary,
           guardrailAction: data.guardrail_action,
           latencyMs: typeof data.latency_ms === "number" ? data.latency_ms : undefined,
           feedback: null,
@@ -499,7 +501,7 @@ export function ImobiSmartWorkspace() {
           open={simulatorOpen}
           initialTipologia={simulatorTipologia}
           onClose={() => setSimulatorOpen(false)}
-          onAskAi={(q) => void sendPrompt(q)}
+          onAskAi={(q, summary) => void sendPrompt(q, summary)}
         />
       ) : null}
     </div>

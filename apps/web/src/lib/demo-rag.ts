@@ -125,11 +125,19 @@ export function buildDemoChatResponse(
   }
 
   const q = normalizeText(input.prompt);
+  const isPortfolioComparison =
+    (q.includes("compar") ||
+      q.includes("tabela") ||
+      q.includes("portfolio") ||
+      q.includes("3 empreendimentos")) &&
+    !q.includes("sac") &&
+    !q.includes("price");
 
   // 2. Multi-doc scenario: FGTS + Paredes + Airbnb
   if (
-    (q.includes("fgts") && (q.includes("parede") || q.includes("airbnb"))) ||
-    (q.includes("parede") && q.includes("airbnb"))
+    !isPortfolioComparison &&
+    ((q.includes("fgts") && (q.includes("parede") || q.includes("airbnb"))) ||
+      (q.includes("parede") && q.includes("airbnb")))
   ) {
     return {
       answer:
@@ -178,14 +186,15 @@ export function buildDemoChatResponse(
 
   // 3. SAC vs Price / Financiamento / Fluxo na Planta / INCC / ITBI
   if (
-    q.includes("sac") ||
-    q.includes("price") ||
-    q.includes("incc") ||
-    q.includes("itbi") ||
-    q.includes("planta") ||
-    q.includes("financiamento") ||
-    q.includes("fgts") ||
-    q.includes("credito")
+    !isPortfolioComparison &&
+    (q.includes("sac") ||
+      q.includes("price") ||
+      q.includes("incc") ||
+      q.includes("itbi") ||
+      q.includes("planta") ||
+      q.includes("financiamento") ||
+      q.includes("fgts") ||
+      q.includes("credito"))
   ) {
     return {
       answer:
@@ -196,8 +205,9 @@ export function buildDemoChatResponse(
         `| **LTV Máximo (SBPE)** | Até 80% do valor do imóvel | Em geral até 70% em bancos comerciais |\n` +
         `| **Custo Total de Juros** | Menor custo final no contrato | Maior total pago, menor 1ª parcela |\n` +
         `| **Regra Bancária** | Comprometimento ≤ 30% da renda; idade + prazo ≤ 80 anos e 6 meses | Mesma regra de renda e idade |\n\n` +
-        `- **Fluxo na planta:** entrada parcelada durante a obra (~35% divididos em ato, mensais e semestrais corrigidos pelo **INCC-M**) e ~65% no financiamento bancário na entrega das chaves. [1]\n` +
-        `- **Custos de documentação em Salvador/BA:** **ITBI estimado em 3%** sobre o valor venal/transação e **50% de desconto nos emolumentos de RGI** para compra do 1º imóvel financiado no SFH (Lei 6.015/73). [2]\n\n` +
+        `- **Sistemas de Amortização:** no SAC o saldo devedor cai de forma constante (menor juros total e LTV de até 80%); na Tabela Price a parcela inicial é menor, com LTV típico de até 70% no SBPE. [1]\n` +
+        `- **Regras de Renda, Idade e Documentação (Salvador/BA):** comprometimento máximo de **30% da renda**, limite **idade + prazo ≤ 80 anos e 6 meses**, **ITBI padrão de 3%** e **50% de desconto no 1º RGI** para imóveis financiados no SFH (Lei nº 6.015/1973, art. 290). [2]\n` +
+        `- **Fluxo na planta:** entrada parcelada durante a obra (**35%** divididos em 10% ato, 15% mensais e 10% semestrais corrigidos pelo **INCC-M**) e **65%** na entrega das chaves via financiamento bancário ou recursos próprios. [3]\n\n` +
         `_Valores e condições sujeitos à análise de crédito e tabela vigente._` +
         DEMO_DISCLAIMER,
       session_id: sessionId,
@@ -206,14 +216,20 @@ export function buildDemoChatResponse(
         makeCitation(
           1,
           "FIN",
-          1,
-          "Fluxo de obra na planta com correção mensal pelo INCC-M, comprometimento máximo de 30% da renda familiar e regra etária de idade + prazo limitada a 80 anos e 6 meses."
+          2,
+          "Sistemas de Amortização: SAC (prestações decrescentes, menor custo total de juros, cota de até 80% no SBPE) versus Tabela Price (prestações fixas, cota limitada a 70% no SBPE)."
         ),
         makeCitation(
           2,
           "FIN",
-          2,
-          "Comparativo SAC vs. Tabela Price: SAC apresenta menor juros total; imóveis no SFH contam com 50% de desconto no 1º registro (Lei 6.015/73) e ITBI de referência de 3% em Salvador."
+          4,
+          "Comprometimento máximo de 30% da renda, regra de idade + prazo ≤ 80 anos e 6 meses, ITBI padrão de 3% em Salvador/BA e desconto legal de 50% no 1º RGI no SFH (Lei nº 6.015/1973, art. 290)."
+        ),
+        makeCitation(
+          3,
+          "FIN",
+          5,
+          "Fluxo Padrão ImobiSmart na planta: 35% durante a obra (10% ato, 15% mensais, 10% semestrais) corrigidos mensalmente pelo INCC-M (FGV) e 65% na entrega das chaves."
         ),
       ],
       guardrail_action: "NONE",
@@ -226,23 +242,23 @@ export function buildDemoChatResponse(
 
   // 4. Reforma / Pets / Fachada / Condomínio / Airbnb
   if (
-    q.includes("reforma") ||
-    q.includes("art") ||
-    q.includes("rrt") ||
-    q.includes("pet") ||
-    q.includes("fachada") ||
-    q.includes("varanda") ||
-    q.includes("airbnb") ||
-    q.includes("condominio")
+    !isPortfolioComparison &&
+    (q.includes("reforma") ||
+      q.includes("art") ||
+      q.includes("rrt") ||
+      q.includes("pet") ||
+      q.includes("fachada") ||
+      q.includes("varanda") ||
+      q.includes("airbnb") ||
+      q.includes("condominio"))
   ) {
     return {
       answer:
         `### Normas de Reforma (ABNT NBR 16280), Fachada, Pets & Locação\n\n` +
-        `- **Aprovação de Reformas:** protocolar o Plano de Reforma no aplicativo do condomínio com **mínimo de 5 dias úteis de antecedência**, anexando **ART (Engenheiro) ou RRT (Arquiteto)** e lista de prestadores. [1]\n` +
-        `- **Horário permitido de obras:** segunda a sexta das 08h às 17h (sem atividades ruidosas aos sábados, domingos e feriados). [1]\n` +
-        `- **Envidraçamento de varanda & fachada:** deve seguir estritamente o modelo padrão aprovado em assembleia para cada empreendimento (vidro laminado/temperado incolor ou especificado na convenção, preservando a estética da fachada). [2]\n` +
-        `- **Regras para Pets:** permitidos animais domésticos de pequeno e médio porte, com circulação nas áreas comuns sempre na guia e elevador de serviço; raças de guarda exigem focinheira. O *Parque das Palmeiras* conta com **Pet Place dedicado de 120 m²**. [2]\n` +
-        `- **Airbnb / Short-Stay:** autorizado exclusivamente no **Smart Studio Metrópole** (mín. 1 diária); proibido no *Parque das Palmeiras* (mín. 30 dias) e *Horizonte Barra* (mín. 90 dias). [2]` +
+        `- **Horário permitido de obras:** segunda a sexta das 08h às 17h (proibido aos sábados, domingos e feriados; envio prévio de Plano de Reforma + ART ou RRT). [1]\n` +
+        `- **Aprovação de Reformas & Airbnb:** protocolar o Plano de Reforma no app com **mínimo de 5 dias úteis de antecedência**, anexando **ART/RRT** e relação de prestadores. Locação **short-stay / Airbnb** permitida apenas no **Smart Studio Metrópole** (mín. 1 diária); proibida no *Parque das Palmeiras* (mín. 30 dias) e *Horizonte Barra* (mín. 90 dias). [2]\n` +
+        `- **Regras para Pets:** circulação nas áreas comuns com **guia curta (máx. 1,5 m)** e transporte exclusivo pelo **elevador de serviço**; cães acima de 25 kg ou raças de guarda devem usar **focinheira** (exceto no Pet Place de 120 m²). [3]\n` +
+        `- **Envidraçamento de varanda & fachada:** vidro laminado incolor **8 mm** (Parque das Palmeiras e Smart Studio) ou **10 mm** (Horizonte Barra), sistema retrátil sem esquadrias verticais e trilhos na cor da fachada (bronze, branco ou preto). [4]` +
         DEMO_DISCLAIMER,
       session_id: sessionId,
       message_id: messageId,
@@ -251,13 +267,25 @@ export function buildDemoChatResponse(
           1,
           "COND",
           1,
-          "O proprietário deve protocolar o Plano de Reforma com antecedência mínima de 5 dias úteis, anexando ART ou RRT conforme ABNT NBR 16280."
+          "Tabela de horários (Seção 1): obras e reformas permitidas de segunda a sexta das 08h00 às 17h00, proibidas aos sábados, domingos e feriados, mediante Plano de Reforma + ART/RRT (NBR 16280)."
         ),
         makeCitation(
           2,
           "COND",
           2,
-          "Diretrizes de envidraçamento padrão de varandas, circulação segura de animais domésticos nas áreas comuns e prazos mínimos de locação por empreendimento."
+          "Aprovação de Reformas com antecedência mínima de 5 dias úteis (ART/RRT) e Política de Locação Short-Stay: Airbnb autorizado apenas no Smart Studio Metrópole (proibido no Horizonte Barra e Parque das Palmeiras)."
+        ),
+        makeCitation(
+          3,
+          "COND",
+          3,
+          "Política de Pets nas áreas comuns: guia curta (até 1,5 m), uso do elevador de serviço, focinheira obrigatória para cães acima de 25 kg ou raças de guarda e áreas restritas."
+        ),
+        makeCitation(
+          4,
+          "COND",
+          4,
+          "Padrão de Fachada e Envidraçamento (Seção 5.2): vidro laminado incolor 8 mm (Palmeiras/Smart) ou 10 mm (Horizonte), sistema retrátil sem esquadrias verticais e trilhos na cor da fachada."
         ),
       ],
       guardrail_action: "NONE",
@@ -282,8 +310,9 @@ export function buildDemoChatResponse(
       `| **Residencial Horizonte Barra** (\`EMP-HB-2027\`) | Barra | R$ 16.800/m² | Dez/2027 (42% obras) | R$ 1.850–3.400 | SFI (sem FGTS) |\n` +
       `| **Parque das Palmeiras Residence** (\`EMP-PP-2026\`) | Horto Florestal | R$ 9.450/m² | Pronto (Habite-se) | R$ 620–890 | SBPE/SFH · FGTS |\n` +
       `| **Smart Studio Metrópole** (\`EMP-SM-2028\`) | Caminho das Árvores | R$ 13.200/m² | Jun/2028 (12% obras) | R$ 410–680 | MCMV 3/4 · SFH |\n\n` +
-      `- **Reformas:** Horizonte Barra permite remoção de vedação c/ ART/RRT; Parque das Palmeiras é alvenaria estrutural (proibido remover paredes); Smart Studio usa drywall acústico remanejável. [1]\n` +
-      `- **Locação:** apenas o Smart Studio Metrópole autoriza locação de curta temporada (Airbnb). [2]\n\n` +
+      `- **Quadro de Preços & Metragens:** valores médios por m², condomínio estimado e todas as 9 tipologias (26,40 m² a 312,00 m²) constam no quadro oficial do catálogo técnico. [1]\n` +
+      `- **Reformas:** Horizonte Barra permite remoção de vedação c/ ART/RRT; Parque das Palmeiras é alvenaria estrutural (proibido remover paredes); Smart Studio usa drywall acústico remanejável. [2]\n` +
+      `- **Locação:** apenas o Smart Studio Metrópole autoriza locação de curta temporada (Airbnb). [3]\n\n` +
       `_Valores e condições sujeitos à análise de crédito e tabela vigente._` +
       DEMO_DISCLAIMER,
     session_id: sessionId,
@@ -292,14 +321,20 @@ export function buildDemoChatResponse(
       makeCitation(
         1,
         "EMP",
-        1,
-        "Tabela comparativa oficial dos 3 empreendimentos da ImobiSmart em Salvador/BA: metragens, valor médio por m², estágio da obra, condomínio estimado e enquadramento."
+        2,
+        "Valor médio por m², condomínio estimado e Quadro Técnico de Tipologias, Metragens, Vagas e Preços Base dos 3 empreendimentos da ImobiSmart em Salvador/BA."
       ),
       makeCitation(
         2,
+        "EMP",
+        3,
+        "Regra Crítica sobre Remoção de Paredes: Horizonte Barra (permite vedação c/ ART/RRT), Parque das Palmeiras (alvenaria estrutural — proibido) e Smart Studio (drywall acústico remanejável)."
+      ),
+      makeCitation(
+        3,
         "COND",
         2,
-        "Regras diferenciadas por empreendimento para locação de curta temporada (Airbnb permitido apenas no Smart Studio Metrópole) e reformas internas."
+        "Política de Locação de Curta Temporada: Airbnb permitido exclusivamente no Smart Studio Metrópole (mín. 1 diária); proibido no Horizonte Barra (mín. 90 dias) e Parque das Palmeiras (mín. 30 dias)."
       ),
     ],
     guardrail_action: "NONE",

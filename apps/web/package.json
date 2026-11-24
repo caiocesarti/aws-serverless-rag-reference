@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start --port 3000",
     "typecheck": "tsc --noEmit",
-    "lint": "next lint"
+    "test": "node --import ./tests/register-server-only.mjs --test tests/*.test.mjs"
   },
   "dependencies": {
     "@vercel/functions": "^3.9.0",

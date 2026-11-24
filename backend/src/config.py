@@ -22,7 +22,7 @@ class Settings:
     log_level: str
 
     @classmethod
-    def from_env(cls) -> "Settings":
+    def from_env(cls) -> Settings:
         def _req(name: str) -> str:
             val = os.environ.get(name, "").strip()
             if not val:

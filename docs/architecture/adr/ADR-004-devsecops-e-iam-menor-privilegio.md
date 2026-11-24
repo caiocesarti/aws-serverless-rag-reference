@@ -29,11 +29,11 @@ Adotar **Menor Privilégio Rígido (zero wildcards `*` em ações e recursos)**,
   - `bedrock:ApplyGuardrail` → apenas o ARN exato do Guardrail `imobismart-guardrail`.
   - `s3:GetObject` → apenas `arn:aws:s3:::imobismart-kb-docs-<ACCOUNT_ID>/documents/*` (exclusivamente para gerar Pre-signed URLs temporárias de 10 min; sem `PutObject` ou `DeleteObject`).
   - `dynamodb:GetItem`, `dynamodb:PutItem`, `dynamodb:Query`, `dynamodb:UpdateItem` → apenas o ARN da tabela `imobismart-sessions`.
-  - `logs:CreateLogStream`, `logs:PutLogEvents` → apenas o Log Group `/aws/lambda/imobismart-chat:*`.
+  - `logs:CreateLogStream`, `logs:PutLogEvents` → apenas o Log Group `/aws/lambda/imobismart-api-<env>:*`.
 
 ### 2. Controles DevSecOps e LGPD
 - **Zero segredos/IDs no Git:** `.gitignore` rígido + `.env.example` com placeholders + checagem de segredos antes de commits.
 - **S3 privado por padrão:** `Block All Public Access = ON`, criptografia em repouso (`SSE-S3` ou `SSE-KMS`) e versionamento ativo.
-- **Bedrock Guardrails:** Mascaramento automático de PII (CPF, telefone, e-mail) e checagem de *Contextual Grounding* para evitar invenção de taxas financeiras ou metragens.
-- **Logs estruturados e retenção finita:** AWS Lambda Powertools em JSON sem logar PII + retenção de `30 dias` no CloudWatch Logs e TTL de `30 dias` no DynamoDB.
+- **Bedrock Guardrails:** Mascaramento/bloqueio automático de PII (CPF, telefone, e-mail) e checagem de *Contextual Grounding* (`0.70`) e *Relevance* (`0.70`) para evitar invenção de taxas financeiras ou metragens.
+- **Logs estruturados e retenção finita:** Logging estruturado em JSON nativo (`logging` + `json.dumps`, zero dependência externa para manter o artefato Lambda em ~15 KB) sem registrar prompts brutos nem PII + retenção de `30 dias` no CloudWatch Logs e TTL de `30 dias` no DynamoDB.
 - **Shift-Left Security:** Análise estática em cada alteração (`ruff` + `bandit` no backend Python, `cfn-lint` / validação IaC em `infra/template.yaml`, TypeScript `strict` + `npm audit` no frontend).

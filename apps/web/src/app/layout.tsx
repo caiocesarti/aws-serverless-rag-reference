@@ -32,7 +32,9 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       suppressHydrationWarning
       className={`${plusJakarta.variable} ${jetbrainsMono.variable}`}
     >
-      <body className="font-sans antialiased">{children}</body>
+      <body suppressHydrationWarning className="font-sans antialiased">
+        {children}
+      </body>
     </html>
   );
 }

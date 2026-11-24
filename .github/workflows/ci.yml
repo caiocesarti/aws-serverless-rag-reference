@@ -84,6 +84,9 @@ jobs:
       - name: Run strict TypeScript typecheck
         run: npm --prefix apps/web run typecheck
 
+      - name: Run BFF security & demo unit tests
+        run: npm --prefix apps/web test
+
       - name: Run production Next.js build
         run: npm --prefix apps/web run build
 
