@@ -246,6 +246,11 @@ Resources:
 
   HealthGetMethod:
     Type: AWS::ApiGateway::Method
+    Metadata:
+      checkov:
+        skip:
+          - id: CKV_AWS_59
+            comment: Intentional public zero-cost liveness probe (ADR-002); GET /v1/health never invokes Bedrock, S3 or DynamoDB.
     Properties:
       RestApiId: !Ref ImobiSmartRestApi
       ResourceId: !Ref HealthResource
