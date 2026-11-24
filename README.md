@@ -1,6 +1,8 @@
 # 🏢 ImobiSmart AI — Central de Inteligência Imobiliária (AWS Well-Architected RAG)
 
 [![CI DevSecOps](https://github.com/caiocesarti/aws-serverless-rag-reference/actions/workflows/ci.yml/badge.svg)](https://github.com/caiocesarti/aws-serverless-rag-reference/actions/workflows/ci.yml)
+[![Live Demo na Vercel](https://img.shields.io/badge/Vercel-Live_Demo_Online-000000?style=flat-square&logo=vercel&logoColor=white)](https://aws-serverless-rag-reference.vercel.app/)
+[![Demo em Produção na AWS](https://img.shields.io/badge/YouTube-Demo_em_Produção_na_AWS-FF0000?style=flat-square&logo=youtube&logoColor=white)](https://youtu.be/37uelSDcW_Q)
 ![AWS Well-Architected](https://img.shields.io/badge/AWS-Well--Architected-FF9900?style=flat-square&logo=amazonaws&logoColor=white)
 ![Amazon Bedrock](https://img.shields.io/badge/Amazon_Bedrock-Nova_Pro_+_Cohere_Rerank_3.5-01A88D?style=flat-square)
 ![Pinecone Serverless](https://img.shields.io/badge/Pinecone-Serverless_1024d-4F46E5?style=flat-square)
@@ -8,9 +10,10 @@
 ![Python](https://img.shields.io/badge/AWS_Lambda-Python_3.12_ARM64-ED7100?style=flat-square&logo=python&logoColor=white)
 ![DevSecOps](https://img.shields.io/badge/DevSecOps-OIDC_+_Zero_Wildcard_IAM-DD344C?style=flat-square)
 ![License](https://img.shields.io/badge/License-MIT-16A34A?style=flat-square)
-[![Demo em Produção na AWS](https://img.shields.io/badge/YouTube-Demo_em_Produção_na_AWS-FF0000?style=flat-square&logo=youtube&logoColor=white)](https://youtu.be/37uelSDcW_Q)
 
 > **Arquitetura de Referência Serverless RAG (Piloto Funcional)** aplicada a um **estudo de caso do setor imobiliário** (corpus técnico sintético de 3 PDFs) — implementada end-to-end na AWS (`us-east-1`) e Next.js 15 seguindo os **6 pilares do AWS Well-Architected Framework**, com **citações por documento e página (`#page=N`)**, **IAM de menor privilégio**, **DevSecOps** e **FinOps**.
+
+**🌐 Demo Interativa Online (Vercel · Standby FinOps US\$ 0/mês):** [aws-serverless-rag-reference.vercel.app](https://aws-serverless-rag-reference.vercel.app/) · **🎥 Gravação Manual em Produção na AWS (YouTube):** [youtu.be/37uelSDcW_Q](https://youtu.be/37uelSDcW_Q)
 
 **Navegação rápida:** [Visão Geral](#-1-visão-geral--funcionalidades) · [Arquitetura AWS (PNG)](#-2-arquitetura-aws-well-architected) · [Fluxos & Sequências](#-3-diagramas-de-fluxo-rag-segurança--cicd) · [6 Pilares & FinOps](#-4-aws-well-architected-framework--finops) · [ADRs](#-5-registro-de-decisões-de-arquitetura-adrs) · [Evidências em Produção (Vídeo)](#-6-evidências-em-produção-na-aws-vídeo--screenshots) · [Stack & Monorepo](#-7-stack-verificada--estrutura-do-monorepo) · [Replicar do Zero](#-8-passo-a-passo-para-replicar-o-projeto) · [Como Testar](#-9-guia-de-testes-e-verificação) · [Escopo & Limites](#-10-escopo-do-piloto--evolução-para-escala)
 
