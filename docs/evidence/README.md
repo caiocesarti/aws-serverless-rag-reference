@@ -1,6 +1,6 @@
 # 🎬 Evidências de QA & Demonstração — ImobiSmart AI
 
-Este diretório reúne as gravações `.mp4` e capturas de tela geradas em auditoria end-to-end no Google Chrome contra a aplicação Next.js 15 + backend Serverless AWS (`us-east-1`, Amazon Bedrock Nova Pro + Pinecone Serverless + Cohere Rerank 3.5 + S3 Pre-signed URLs).
+Este diretório reúne as gravações `.mp4` e capturas de tela geradas em validação end-to-end no Google Chrome contra a aplicação Next.js 15 + backend Serverless na AWS (`us-east-1`, Amazon Bedrock Nova Pro + Pinecone Serverless + Cohere Rerank 3.5 + S3 Pre-signed URLs).
 
 > **Dica para GitHub README / PRs:** você pode arrastar qualquer arquivo `.mp4` desta pasta diretamente para o editor do README ou de uma Issue/PR no GitHub para obter o player nativo embutido.
 

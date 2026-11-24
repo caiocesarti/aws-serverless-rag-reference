@@ -8,21 +8,21 @@
 ![DevSecOps](https://img.shields.io/badge/DevSecOps-OIDC_+_Zero_Wildcard_IAM-DD344C?style=flat-square)
 ![License](https://img.shields.io/badge/License-MIT-16A34A?style=flat-square)
 
-> **Copiloto técnico-comercial RAG pronto para produção** para consulta auditável de empreendimentos, memoriais descritivos, convenção condominial e financiamento habitacional — arquitetado sob os **6 Pilares do AWS Well-Architected Framework**, com **citações determinísticas por documento e página (`#page=N`)**, **DevSecOps / IAM Menor Privilégio Rígido**, **FinOps (>97% de economia vs. OpenSearch Serverless)** e **Frontend PropTech em Next.js 15 + BFF Seguro (Security Headers Nota A+)**.
+> **Arquitetura de Referência Serverless RAG (Piloto Funcional)** aplicada a um **estudo de caso do setor imobiliário** (corpus técnico sintético de 3 PDFs) — implementada end-to-end na AWS (`us-east-1`) e Next.js 15 seguindo os **6 pilares do AWS Well-Architected Framework**, com **citações por documento e página (`#page=N`)**, **IAM de menor privilégio**, **DevSecOps** e **FinOps**.
 
-**Navegação rápida:** [Visão Geral](#-1-visão-geral--funcionalidades) · [Arquitetura AWS (PNG)](#-2-arquitetura-aws-well-architected) · [Fluxos & Sequências](#-3-diagramas-de-fluxo-rag-segurança--cicd) · [6 Pilares & FinOps](#-4-aws-well-architected-framework--finops) · [ADRs](#-5-registro-de-decisões-de-arquitetura-adrs) · [Evidências QA (.mp4)](#-6-evidências-de-qa-em-produção-mp4--screenshots) · [Stack & Monorepo](#-7-stack-verificada--estrutura-do-monorepo) · [Replicar do Zero](#-8-passo-a-passo-para-replicar-o-projeto) · [Como Testar](#-9-guia-de-testes-e-verificação)
+**Navegação rápida:** [Visão Geral](#-1-visão-geral--funcionalidades) · [Arquitetura AWS (PNG)](#-2-arquitetura-aws-well-architected) · [Fluxos & Sequências](#-3-diagramas-de-fluxo-rag-segurança--cicd) · [6 Pilares & FinOps](#-4-aws-well-architected-framework--finops) · [ADRs](#-5-registro-de-decisões-de-arquitetura-adrs) · [Evidências QA (.mp4)](#-6-evidências-de-qa-mp4--screenshots) · [Stack & Monorepo](#-7-stack-verificada--estrutura-do-monorepo) · [Replicar do Zero](#-8-passo-a-passo-para-replicar-o-projeto) · [Como Testar](#-9-guia-de-testes-e-verificação) · [Escopo & Limites](#-10-escopo-do-piloto--evolução-para-escala)
 
 ---
 
 ## 🎯 1. Visão Geral & Funcionalidades
 
-Corretores e compradores frequentemente cruzam informações dispersas em três documentos técnicos distintos (catálogo de plantas, convenção de condomínio e manual de crédito bancário). O **ImobiSmart AI** resolve esse gargalo com **RAG ancorado multi-documento** e rastreabilidade jurídica ponta a ponta:
+Este projeto é um **piloto funcional e arquitetura de referência** construído sobre um estudo de caso fictício (*ImobiSmart Incorporadora — Salvador/BA*), com um corpus sintético controlado de 3 documentos técnicos em PDF (catálogo de plantas, convenção de condomínio e manual de crédito). O objetivo é demonstrar, em código e infraestrutura reais, como estruturar um assistente **RAG multi-documento** com rastreabilidade de fontes, controles de segurança e baixo custo operacional:
 
 - **Consultas Multi-Documento com Reranking:** Amazon Bedrock Knowledge Base (*FM Parsing* com Nova Pro + *Hierarchical Chunking* `1500/300/60` + *Query Decomposition*) sobre Pinecone Serverless (`1024d`, *cosine*) com **Cohere Rerank 3.5** (`top 12 → 6`) e geração via **Amazon Nova Pro** (`temperature: 0.1`).
-- **Citações Exatas com Documento, Página e Deep-Link `#page=N`:** extração determinística de `x-amz-bedrock-kb-document-page-number`, badges inline `[1 · p.N]`, cards de fontes oficiais com título/arquivo `.pdf` e inspetor lateral (`CitationDrawer`) abrindo o PDF do S3 privado direto na página citada via **Pre-signed URL SigV4 (10 min)**.
-- **Proteção LGPD & Anti-Alucinação:** Amazon Bedrock Guardrail (`Standard`, PT-BR) bloqueando PII (`CPF_BR`, `EMAIL`, `PHONE`) e validando *Contextual Grounding* (`≥ 0.70`).
-- **Portfólio Fotográfico & Simulador SAC vs. Tabela Price:** 3 empreendimentos reais em Salvador/BA (*Residencial Horizonte Barra*, *Parque das Palmeiras Residence*, *Smart Studio Metrópole*) com enquadramento automático **SFH/FGTS vs. SFI**, desconto de 50% no 1º RGI (Lei 6.015/73), ITBI (3%), alerta de LTV > 70% na Price e regra etária bancária (`idade + prazo ≤ 80 anos e 6 meses`).
-- **Produtividade do Corretor & FinOps Standby:** filtros por persona (`Corretor`/`Comprador`) e domínio Pinecone, exportação formatada para **WhatsApp** (com fontes/páginas), feedback 👍/👎 no DynamoDB e modo opcional **`DEMO_MODE=true`** para manter o site na Vercel a **US\$ 0,00/mês** quando a AWS estiver em standby.
+- **Citações com Documento, Página e Deep-Link `#page=N`:** extração determinística de `x-amz-bedrock-kb-document-page-number`, marcações inline `[1 · p.N]`, cards de fontes com título/arquivo `.pdf` e inspetor lateral (`CitationDrawer`) abrindo o PDF do S3 privado direto na página citada via **Pre-signed URL SigV4 (10 min)**.
+- **Proteção LGPD & Controle de Alucinação:** Amazon Bedrock Guardrail (`Standard`, PT-BR) bloqueando PII (`CPF_BR`, `EMAIL`, `PHONE`) e validando *Contextual Grounding* (`≥ 0.70`).
+- **Portfólio Fotográfico & Simulador SAC vs. Tabela Price:** 3 empreendimentos do estudo de caso (*Residencial Horizonte Barra*, *Parque das Palmeiras Residence*, *Smart Studio Metrópole*) com enquadramento automático **SFH/FGTS vs. SFI**, desconto de 50% no 1º RGI (Lei 6.015/73), estimativa de ITBI (3%), alerta de LTV > 70% na Price e regra etária (`idade + prazo ≤ 80 anos e 6 meses`).
+- **Apoio ao Corretor & Standby FinOps:** filtros por persona (`Corretor`/`Comprador`) e domínio Pinecone, formatação para **WhatsApp** (com fontes/páginas), feedback 👍/👎 no DynamoDB e flag opcional **`DEMO_MODE=true`** para manter a interface navegável na Vercel a **US\$ 0,00/mês** quando a stack AWS estiver desligada.
 
 ---
 
@@ -151,7 +151,7 @@ sequenceDiagram
 | Pilar Well-Architected | Implementação Concreta no ImobiSmart AI | Referência |
 | :--- | :--- | :--- |
 | **1. Excelência Operacional** | Infraestrutura 100% IaC em CloudFormation (`infra/template.yaml`), deploy automatizado via `deploy.ps1` e GitHub Actions OIDC, logs JSON estruturados sem PII, métricas `@vercel/functions`, governança `.agent/` (regras, workflows `/` e skills) e 11 testes unitários automatizados. | [ADR-004](docs/architecture/adr/ADR-004-devsecops-e-iam-menor-privilegio.md), [ADR-007](docs/architecture/adr/ADR-007-estrategia-containers-e-ci-cd.md) |
-| **2. Segurança** | Duas roles IAM segregadas de menor privilégio (trust policy anti-*Confused Deputy* via `aws:SourceAccount`/`aws:SourceArn`), S3 privado (*Block Public Access*, `SSE-S3`, `DenyInsecureTransport`, Pre-signed URL 10 min com trava anti-*path traversal*), BFF sem `x-api-key` no browser, Security Headers Nota A+ (`CSP`, `HSTS`, `X-Frame-Options: DENY`), zero CORS `*` e Bedrock Guardrail LGPD. | [ADR-003](docs/architecture/adr/ADR-003-cors-restritivo-e-padrao-bff.md), [ADR-004](docs/architecture/adr/ADR-004-devsecops-e-iam-menor-privilegio.md) |
+| **2. Segurança** | Duas roles IAM segregadas de menor privilégio (trust policy anti-*Confused Deputy* via `aws:SourceAccount`/`aws:SourceArn`), S3 privado (*Block Public Access*, `SSE-S3`, `DenyInsecureTransport`, Pre-signed URL 10 min com trava anti-*path traversal*), BFF sem `x-api-key` no browser, Security Headers restritivos (`CSP`, `HSTS`, `X-Frame-Options: DENY`), zero CORS `*` e Bedrock Guardrail LGPD. | [ADR-003](docs/architecture/adr/ADR-003-cors-restritivo-e-padrao-bff.md), [ADR-004](docs/architecture/adr/ADR-004-devsecops-e-iam-menor-privilegio.md) |
 | **3. Confiabilidade** | Serviços 100% gerenciados e Multi-AZ nativos (API Gateway, Lambda, DynamoDB On-Demand, S3 Versionado, Bedrock), fallback automático de `sessionId` desconhecido no Bedrock, telemetria DynamoDB não-bloqueante e fonte canônica de 3 PDFs sem conflitos. | [ADR-005](docs/architecture/adr/ADR-005-fonte-canonica-kb-3-pdfs.md) |
 | **4. Eficiência de Performance** | Lambda Python 3.12 em **ARM64 (Graviton)** com pacote enxuto de **~13 KB** (sem container pesado), Cohere Rerank 3.5 + Query Decomposition, cache de Pre-signed URL por arquivo e Next.js 15 App Router com imagens self-hosted e modal lazy-loaded (`next/dynamic`). | [ADR-006](docs/architecture/adr/ADR-006-frontend-2026-nextjs-vercel-ai-sdk.md), [ADR-007](docs/architecture/adr/ADR-007-estrategia-containers-e-ci-cd.md) |
 | **5. Otimização de Custos (FinOps)** | Pinecone Serverless Starter (**US\$ 0/mês** vs. ~US\$ 350–700 do OpenSearch Serverless), defesa anti-*Denial of Wallet* em 4 camadas **sem AWS WAF**, AWS Budgets Alert (US\$ 5/mês), retenção 30d (CloudWatch/DynamoDB TTL) e `DEMO_MODE=true` na Vercel (**US\$ 0/mês** em standby). | [ADR-001](docs/architecture/adr/ADR-001-vector-store-pinecone-serverless.md), [ADR-002](docs/architecture/adr/ADR-002-rate-limiting-finops-sem-waf.md) |
@@ -185,9 +185,9 @@ Todas as decisões e trade-offs estão formalmente documentados em [docs/archite
 
 ---
 
-## 🎬 6. Evidências de QA em Produção (`.mp4` & Screenshots)
+## 🎬 6. Evidências de QA (`.mp4` & Screenshots)
 
-Todas as gravações em vídeo (`.mp4`), capturas de tela e evidências da infraestrutura AWS estão catalogadas em **[docs/evidence/README.md](docs/evidence/README.md)**:
+Todas as gravações em vídeo (`.mp4`), capturas de tela e evidências da infraestrutura na AWS estão organizadas em **[docs/evidence/README.md](docs/evidence/README.md)**:
 
 | Preview Visual | Fluxo Validado (Chrome + AWS `us-east-1`) | Gravação `.mp4` |
 | :---: | :--- | :--- |
@@ -282,7 +282,7 @@ npm --prefix apps/web run start
 
 ---
 
-### Opção B — Replicação Completa na AWS + Vercel (Produção Real)
+### Opção B — Replicação Completa na AWS + Vercel (Ambiente Real)
 
 #### Passo 1 — Bucket S3 Privado & Sincronização dos 3 PDFs Canônicos
 1. Crie um bucket S3 privado em `us-east-1` (`Block All Public Access = ON`, `Versioning = Enabled`, criptografia `SSE-S3` e bucket policy `DenyInsecureTransport`).
@@ -410,7 +410,18 @@ $env:AWS_API_KEY_ID   = "<SEU_API_KEY_ID>"
 
 ---
 
-## 👤 10. Autor & Licença
+## 📌 10. Escopo do Piloto & Evolução para Escala
+
+Para manter o projeto transparente e coerente com o teto de custo (FinOps) de um piloto / arquitetura de referência, alguns requisitos de operação corporativa em larga escala foram deliberadamente deixados fora do escopo inicial e mapeados como próximos passos:
+
+- **Autenticação & RBAC:** adicionar login corporativo (Amazon Cognito, Clerk ou SSO OIDC) com controle de perfis e isolamento multi-tenant.
+- **Rate Limiting Distribuído:** substituir o bucket em memória das Serverless Functions da Vercel por armazenamento distribuído (Upstash Redis ou Amazon DynamoDB) para consistência sob alta concorrência.
+- **Observabilidade Avançada & Borda:** ativar tracing distribuído (OpenTelemetry / AWS X-Ray), alarmes no CloudWatch e avaliar AWS WAF caso o volume de tráfego público justifique o custo fixo mensal.
+- **Multi-ambiente & Testes E2E:** promover pipelines separados (`dev` / `staging` / `prod`) com suíte E2E automatizada (Playwright) em ambiente efêmero.
+
+---
+
+## 👤 11. Autor & Licença
 
 - **Autor:** Caio Cesar
 - **Licença:** MIT — consulte [LICENSE](LICENSE).
