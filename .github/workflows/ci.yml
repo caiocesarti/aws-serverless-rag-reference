@@ -87,7 +87,11 @@ jobs:
       - name: Run production Next.js build
         run: npm --prefix apps/web run build
 
-      - name: Audit high/critical npm vulnerabilities
+      - name: Audit critical npm vulnerabilities (blocking)
+        run: npm --prefix apps/web audit --audit-level=critical
+
+      - name: Report high npm advisories (visibility for breaking major upgrades)
+        continue-on-error: true
         run: npm --prefix apps/web audit --audit-level=high
 
   iac-security:

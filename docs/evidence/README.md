@@ -37,6 +37,7 @@ Este diretório reúne as gravações `.mp4` e capturas de tela geradas em valid
 9. **Amazon S3 Privado (Prefixos isolados `artifacts/` e `documents/`):** ![AWS S3 Bucket](./screenshots/09-aws-s3-private-bucket.png)
 10. **Amazon Bedrock Knowledge Base (`imobismart-kb-prod` · `ImobiSmartBedrockKBRole` · Hierarchical Chunking + FM Parsing + Titan Embed v2 `1024d`):** ![AWS Bedrock Knowledge Base](./screenshots/10-aws-bedrock-kb.png)
 11. **Pinecone Serverless (`imobismart-kb` · `81` vetores · `0.64 MB / 2 GB` · `us-east-1` · Metadados escalares planos):** ![Pinecone Serverless Index](./screenshots/11-pinecone-serverless-index.png)
+12. **Amazon DynamoDB (`imobismart-sessions-prod` · `Active` · `pk`/`sk` · `On-demand`):** ![AWS DynamoDB Sessions](./screenshots/12-aws-dynamodb-sessions.png)
 
 ---
 

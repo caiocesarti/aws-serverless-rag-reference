@@ -197,7 +197,7 @@ Todas as gravações em vídeo (`.mp4`), capturas de tela e evidências da infra
 | ![PDF Drawer #page=1](docs/evidence/screenshots/06-pdf-drawer-presigned-page.png) | **Chat RAG + Citações `[1 · p.1]` + PDF `#page=1`:** resposta real Bedrock + PDF inline via S3 Pre-signed URL | [demo-rag-citacoes-pagina-pdf.mp4](docs/evidence/demo-rag-citacoes-pagina-pdf.mp4) |
 
 **Infraestrutura provisionada (prints sanitizados em [docs/evidence/README.md](docs/evidence/README.md)):**
-[AWS Lambda](docs/evidence/screenshots/07-aws-lambda-overview.png) · [API Gateway REST](docs/evidence/screenshots/08-aws-api-gateway.png) · [S3 Privado (`artifacts/` + `documents/`)](docs/evidence/screenshots/09-aws-s3-private-bucket.png) · [Bedrock Knowledge Base](docs/evidence/screenshots/10-aws-bedrock-kb.png) · [Pinecone Serverless (`81` vetores)](docs/evidence/screenshots/11-pinecone-serverless-index.png)
+[AWS Lambda](docs/evidence/screenshots/07-aws-lambda-overview.png) · [API Gateway REST](docs/evidence/screenshots/08-aws-api-gateway.png) · [S3 Privado (`artifacts/` + `documents/`)](docs/evidence/screenshots/09-aws-s3-private-bucket.png) · [Bedrock Knowledge Base](docs/evidence/screenshots/10-aws-bedrock-kb.png) · [Pinecone Serverless (`81` vetores)](docs/evidence/screenshots/11-pinecone-serverless-index.png) · [DynamoDB (`On-demand`)](docs/evidence/screenshots/12-aws-dynamodb-sessions.png)
 
 ---
 
@@ -211,7 +211,7 @@ Todas as gravações em vídeo (`.mp4`), capturas de tela e evidências da infra
 | **Dados, IaC & DevSecOps** | Amazon S3 privado · Amazon DynamoDB (On-Demand + TTL 30d) · API Gateway REST (Usage Plan) · AWS Secrets Manager · CloudFormation · GitHub Actions (Gitleaks, Ruff, Bandit, cfn-lint, Checkov, OIDC) |
 
 ```text
-imobismart-ai/
+aws-serverless-rag-reference/
 ├── .agent/                       # Governança Google Antigravity (rules, workflows /, skills)
 ├── .github/workflows/            # CI DevSecOps (ci.yml) + Deploy AWS OIDC (deploy-aws.yml)
 ├── apps/web/                     # Frontend PropTech + BFF Seguro (Next.js 15 + Tailwind v4)
@@ -256,8 +256,8 @@ Ideal para recrutadores, avaliadores técnicos ou testes rápidos de UX/seguran�
 
 ```bash
 # 1. Clonar o repositório
-git clone https://github.com/<SEU_USUARIO>/<SEU_REPOSITORIO>.git
-cd <SEU_REPOSITORIO>
+git clone https://github.com/caiocesarti/aws-serverless-rag-reference.git
+cd aws-serverless-rag-reference
 
 # 2. Instalar dependências do frontend/BFF
 npm --prefix apps/web ci

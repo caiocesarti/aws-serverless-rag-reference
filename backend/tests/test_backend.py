@@ -13,12 +13,12 @@ BACKEND_ROOT = Path(__file__).resolve().parents[1]
 if str(BACKEND_ROOT) not in sys.path:
     sys.path.insert(0, str(BACKEND_ROOT))
 
-from src.config import Settings
-from src.handlers.chat import lambda_handler
-from src.schemas.chat import ChatRequest, FeedbackRequest, ValidationError
-from src.services.bedrock_rag import BedrockRagService
-from src.services.s3_presigner import S3Presigner
-from src.services.session_store import SessionStore
+from src.config import Settings  # noqa: E402
+from src.handlers.chat import lambda_handler  # noqa: E402
+from src.schemas.chat import ChatRequest, FeedbackRequest, ValidationError  # noqa: E402
+from src.services.bedrock_rag import BedrockRagService  # noqa: E402
+from src.services.s3_presigner import S3Presigner  # noqa: E402
+from src.services.session_store import SessionStore  # noqa: E402
 
 
 def _make_settings() -> Settings:
