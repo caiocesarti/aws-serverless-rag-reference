@@ -19,6 +19,7 @@ export interface Citation {
   vigencia: string;
   snippet: string;
   presigned_url: string | null;
+  demo_pdf_url?: string | null;
   s3_key: string | null;
 }
 

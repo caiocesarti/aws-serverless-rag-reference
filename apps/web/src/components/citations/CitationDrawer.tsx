@@ -9,6 +9,8 @@ interface CitationDrawerProps {
   onClose: () => void;
 }
 
+const SAFE_DEMO_PDF_PATH_RE = /^\/api\/demo-pdf\?doc=IMOBI-(?:EMP-001|COND-002|FIN-003)$/;
+
 export function CitationDrawer({ citation, onClose }: CitationDrawerProps) {
   if (!citation) return null;
 
@@ -16,6 +18,15 @@ export function CitationDrawer({ citation, onClose }: CitationDrawerProps) {
     ? citation.pagina
       ? `${citation.presigned_url}#page=${citation.pagina}`
       : citation.presigned_url
+    : null;
+  const safeDemoPdfBase =
+    !pdfUrl && citation.demo_pdf_url && SAFE_DEMO_PDF_PATH_RE.test(citation.demo_pdf_url)
+      ? citation.demo_pdf_url
+      : null;
+  const demoPdfHref = safeDemoPdfBase
+    ? citation.pagina
+      ? `${safeDemoPdfBase}#page=${citation.pagina}`
+      : safeDemoPdfBase
     : null;
   const displayFileName =
     citation.arquivo || citation.s3_key?.split("/").pop() || citation.s3_key || "documento.pdf";
@@ -72,7 +83,9 @@ export function CitationDrawer({ citation, onClose }: CitationDrawerProps) {
             <Lock className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
             {pdfUrl
               ? "S3 Privado · Pre-signed URL temporária (10 min · SigV4)"
-              : "Modo Portfólio (FinOps) · Metadados e trecho verificados da KB oficial"}
+              : demoPdfHref
+                ? "Modo Portfólio (FinOps) · Metadados e trecho verificados da KB oficial"
+                : "S3 Privado · Metadados e trecho recuperados da KB oficial"}
           </span>
           {pdfUrl ? (
             <a
@@ -116,16 +129,48 @@ export function CitationDrawer({ citation, onClose }: CitationDrawerProps) {
                 className="min-h-[420px] w-full flex-1 bg-white"
               />
             </div>
-          ) : (
+          ) : demoPdfHref ? (
             <div className="rounded-xl border border-dashed border-sky-200 bg-sky-50/50 p-6 text-center dark:border-sky-900/60 dark:bg-sky-950/20">
-              <p className="text-xs font-bold text-slate-800 dark:text-slate-100">
+              <span className="inline-flex items-center rounded-full border border-amber-300/80 bg-amber-100/80 px-2.5 py-0.5 font-mono text-[10px] font-bold tracking-wide text-amber-900 uppercase dark:border-amber-700/70 dark:bg-amber-950/60 dark:text-amber-200">
+                Exclusivo do Modo Demo · Não existe em produção AWS
+              </span>
+              <p className="mt-3 text-xs font-bold text-slate-800 dark:text-slate-100">
                 Pré-visualização S3 em Standby (Modo Portfólio FinOps)
               </p>
               <p className="mt-1.5 text-xs leading-relaxed text-slate-600 dark:text-slate-400">
                 Documento oficial <span className="font-mono font-semibold">{displayFileName}</span>
-                {citation.pagina ? ` (Página ${citation.pagina})` : ""}. Em produção com a stack
-                AWS ativa, este painel carrega o PDF diretamente do bucket S3 privado via Pre-signed
-                URL SigV4 (10 min).
+                {citation.pagina ? ` (Página ${citation.pagina})` : ""}.
+              </p>
+              <div className="mt-4 flex justify-center">
+                <a
+                  href={demoPdfHref}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-sky-600 px-4 py-2 text-xs font-bold text-white shadow-xs transition hover:bg-sky-700 dark:bg-sky-500 dark:hover:bg-sky-400"
+                >
+                  <FileText className="h-3.5 w-3.5" />
+                  Conferir PDF da Base{citation.pagina ? ` (Pág. ${citation.pagina})` : ""}
+                  <ExternalLink className="h-3.5 w-3.5" />
+                </a>
+              </div>
+              <p className="mt-3 text-[11px] leading-relaxed text-slate-500 dark:text-slate-400">
+                Este atalho lê a cópia pública da base apenas com{" "}
+                <span className="font-mono font-semibold">DEMO_MODE=true</span>. Em produção AWS (
+                <span className="font-mono font-semibold">DEMO_MODE=false</span>), a rota{" "}
+                <span className="font-mono">/api/demo-pdf</span> retorna{" "}
+                <span className="font-mono font-semibold">404</span> e este painel exibe o PDF
+                direto do bucket S3 privado via Pre-signed URL SigV4 (10 min).
+              </p>
+            </div>
+          ) : (
+            <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50/70 p-6 text-center dark:border-slate-800 dark:bg-slate-900/40">
+              <p className="text-xs font-bold text-slate-800 dark:text-slate-100">
+                Pré-visualização S3 temporariamente indisponível
+              </p>
+              <p className="mt-1.5 text-xs leading-relaxed text-slate-600 dark:text-slate-400">
+                Documento oficial <span className="font-mono font-semibold">{displayFileName}</span>
+                {citation.pagina ? ` (Página ${citation.pagina})` : ""}. Tente refazer a consulta
+                para gerar uma nova Pre-signed URL temporária (SigV4 · 10 min).
               </p>
             </div>
           )}

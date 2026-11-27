@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { buildDemoChatResponse } from "../src/lib/demo-rag.ts";
+import {
+  buildDemoChatResponse,
+  isDemoModeEnabled,
+  resolveDemoPdfEntry,
+} from "../src/lib/demo-rag.ts";
 import {
   assertSameOrigin,
   enforceRateLimit,
@@ -213,4 +217,66 @@ test("formatForWhatsApp strips inline markers and appends official source versio
   assert.ok(!formatted.includes("[1]"));
   assert.ok(formatted.includes("*SFH*"));
   assert.ok(formatted.includes("IMOBI-FIN-003 (v4.0 · Pág. 1)"));
+});
+
+test("isDemoModeEnabled defaults to false for AWS production parity", () => {
+  const prev = process.env.DEMO_MODE;
+  try {
+    delete process.env.DEMO_MODE;
+    assert.equal(isDemoModeEnabled(), false);
+
+    process.env.DEMO_MODE = "false";
+    assert.equal(isDemoModeEnabled(), false);
+
+    process.env.DEMO_MODE = "1";
+    assert.equal(isDemoModeEnabled(), false);
+
+    process.env.DEMO_MODE = " true ";
+    assert.equal(isDemoModeEnabled(), true);
+  } finally {
+    if (prev === undefined) delete process.env.DEMO_MODE;
+    else process.env.DEMO_MODE = prev;
+  }
+});
+
+test("resolveDemoPdfEntry enforces strict 3-document allowlist and blocks traversal/SSRF/prototype keys", () => {
+  const emp = resolveDemoPdfEntry("IMOBI-EMP-001");
+  const cond = resolveDemoPdfEntry("imobi-cond-002");
+  const fin = resolveDemoPdfEntry(" IMOBI-FIN-003 ");
+
+  assert.equal(emp?.filename, "catalogo-tecnico-empreendimentos-imobi-emp-001.pdf");
+  assert.equal(cond?.filename, "convencao-condominio-regimento-imobi-cond-002.pdf");
+  assert.equal(fin?.filename, "manual-credito-financiamento-imobi-fin-003.pdf");
+
+  for (const entry of [emp, cond, fin]) {
+    assert.ok(
+      entry?.rawUrl.startsWith(
+        "https://raw.githubusercontent.com/caiocesarti/aws-serverless-rag-reference/main/knowledge-base/documents/"
+      )
+    );
+  }
+
+  for (const malicious of [
+    null,
+    undefined,
+    "",
+    "../.env.local",
+    "IMOBI-EMP-001/../secrets.pdf",
+    "https://evil.example/payload.pdf",
+    "__proto__",
+    "constructor",
+    "toString",
+    "IMOBI-UNKNOWN-999",
+  ]) {
+    assert.equal(resolveDemoPdfEntry(malicious), null);
+  }
+
+  const demoRes = buildDemoChatResponse(
+    { prompt: "Compare SAC vs Price", persona: "corretor" },
+    "req-demo-pdf"
+  );
+  for (const citation of demoRes.citations) {
+    assert.equal(citation.presigned_url, null);
+    assert.equal(citation.demo_pdf_url, `/api/demo-pdf?doc=${citation.codigo_doc}`);
+  }
 });

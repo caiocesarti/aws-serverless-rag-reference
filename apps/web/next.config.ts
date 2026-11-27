@@ -41,6 +41,9 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   poweredByHeader: false,
   reactStrictMode: true,
+  outputFileTracingIncludes: {
+    "/api/demo-pdf": ["../../knowledge-base/documents/*.pdf"],
+  },
   async headers() {
     return [
       {

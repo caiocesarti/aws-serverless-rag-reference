@@ -8,6 +8,42 @@ export function isDemoModeEnabled(): boolean {
   return (process.env.DEMO_MODE ?? "").trim().toLowerCase() === "true";
 }
 
+export interface DemoPdfEntry {
+  codigo_doc: "IMOBI-EMP-001" | "IMOBI-COND-002" | "IMOBI-FIN-003";
+  filename: string;
+  rawUrl: string;
+}
+
+const GITHUB_KB_RAW_BASE =
+  "https://raw.githubusercontent.com/caiocesarti/aws-serverless-rag-reference/main/knowledge-base/documents";
+
+const DEMO_PDF_ALLOWLIST: Readonly<Record<string, DemoPdfEntry>> = Object.freeze({
+  "IMOBI-EMP-001": Object.freeze({
+    codigo_doc: "IMOBI-EMP-001",
+    filename: "catalogo-tecnico-empreendimentos-imobi-emp-001.pdf",
+    rawUrl: `${GITHUB_KB_RAW_BASE}/catalogo-tecnico-empreendimentos-imobi-emp-001.pdf`,
+  }),
+  "IMOBI-COND-002": Object.freeze({
+    codigo_doc: "IMOBI-COND-002",
+    filename: "convencao-condominio-regimento-imobi-cond-002.pdf",
+    rawUrl: `${GITHUB_KB_RAW_BASE}/convencao-condominio-regimento-imobi-cond-002.pdf`,
+  }),
+  "IMOBI-FIN-003": Object.freeze({
+    codigo_doc: "IMOBI-FIN-003",
+    filename: "manual-credito-financiamento-imobi-fin-003.pdf",
+    rawUrl: `${GITHUB_KB_RAW_BASE}/manual-credito-financiamento-imobi-fin-003.pdf`,
+  }),
+});
+
+export function resolveDemoPdfEntry(docCode: string | null | undefined): DemoPdfEntry | null {
+  if (!docCode) return null;
+  const normalized = docCode.trim().toUpperCase();
+  if (!Object.hasOwn(DEMO_PDF_ALLOWLIST, normalized)) {
+    return null;
+  }
+  return DEMO_PDF_ALLOWLIST[normalized] ?? null;
+}
+
 interface DemoChatInput {
   prompt: string;
   persona: Persona;
@@ -88,6 +124,7 @@ function makeCitation(
     pagina,
     snippet,
     presigned_url: null,
+    demo_pdf_url: `/api/demo-pdf?doc=${catalog.codigo_doc}`,
   };
 }
 
